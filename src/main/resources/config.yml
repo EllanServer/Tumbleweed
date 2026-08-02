@@ -6,7 +6,8 @@
 #   - 践踏农田 / 掉落表                 -> plugins/MythicMobs/Mobs/Tumbleweed.yml
 #   - 骷髅射击风滚草 AI                 -> plugins/MythicMobs/Mobs/Skeleton.yml
 #   - 自然生成 (生物群系/概率/距离)      -> plugins/MythicMobs/Spawners/TumbleweedSpawner.yml
-#   - 3D 模型 / 纹理                    -> plugins/ModelEngine/blueprints/tumbleweed.bbmodel
+#   - 3D 模型 / 纹理                    -> plugins/CraftEngine/resources/tumbleweed/ (默认)
+#                                         或 plugins/ModelEngine/blueprints/tumbleweed.bbmodel (回退)
 #  本文件只保留插件自身物理相关的参数。
 # ============================================================
 
@@ -14,6 +15,14 @@
 # 调大 -> 风滚草滚得更快;调小 -> 更慢。
 wind-multiplier: 1.0
 
-# 首次启动时是否把内嵌的 MythicMobs 配置与 ModelEngine 蓝图
+# 渲染后端:
+#   auto          -> 优先 CraftEngine (ItemDisplay + 物品模型),没有则回退 ModelEngine (默认)
+#   craftengine   -> 强制 ItemDisplay + craft-engine 物品模型 (需安装 CraftEngine)
+#   modelengine   -> 强制 ModelEngine 骨骼模型 (需安装 ModelEngine)
+# 没有任何可用后端时插件将拒绝启动。
+renderer: auto
+
+# 首次启动时是否把内嵌的 MythicMobs 配置与 CraftEngine / ModelEngine 资源
 # 自动导出到插件目录 (已存在的文件不会被覆盖)。
+# 注意:CraftEngine 资源导出后需执行一次 /ce reload all 才会打包进资源包。
 auto-export-resources: true

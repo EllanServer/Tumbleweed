@@ -33,7 +33,7 @@ public class TumbleweedManager {
             task = null;
         }
         for (Tumbleweed t : tumbleweeds.values()) {
-            ModelController.detach(t.entity());
+            ModelController.detach(t);
         }
         tumbleweeds.clear();
     }
@@ -44,21 +44,20 @@ public class TumbleweedManager {
             Map.Entry<UUID, Tumbleweed> entry = it.next();
             Tumbleweed tw = entry.getValue();
             if (tw.entity().isDead() || !tw.entity().isValid()) {
-                ModelController.detach(tw.entity());
+                ModelController.detach(tw);
                 it.remove();
                 continue;
             }
             tw.tick(this);
-            // 旋转 + 压扁同步到 ModelEngine root 骨骼
-            ModelController.sync(tw.entity(), tw.rotation().quat,
-                    tw.renderScaleX(), tw.renderScaleY(), tw.renderScaleZ());
+            // 旋转 + 压扁 + 淡出同步到渲染后端 (ItemDisplay / ModelEngine)
+            ModelController.sync(tw);
         }
     }
 
     /** 注册新的风滚草 (由 MythicListener 在 MM 实体生成后调用)。 */
     public void register(Tumbleweed tw) {
         if (tumbleweeds.putIfAbsent(tw.entity().getUniqueId(), tw) == null) {
-            ModelController.attach(tw.entity());
+            ModelController.attach(tw);
         }
     }
 
@@ -66,7 +65,7 @@ public class TumbleweedManager {
     public void remove(Tumbleweed tw) {
         Tumbleweed removed = tumbleweeds.remove(tw.entity().getUniqueId());
         if (removed != null) {
-            ModelController.detach(tw.entity());
+            ModelController.detach(tw);
             if (tw.entity().isValid() && !tw.entity().isDead()) {
                 tw.entity().remove();
             }
