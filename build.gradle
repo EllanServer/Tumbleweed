@@ -21,8 +21,8 @@ dependencies {
     // Paper 26.2 API (提供 org.joml 传递依赖)
     compileOnly 'io.papermc.paper:paper-api:26.2.build.87-stable'
 
-    // MythicMobs 5.9.2 (compileOnly)
-    compileOnly 'io.lumine:Mythic-Dist:5.9.2-SNAPSHOT'
+    // MythicMobs 5.13.1 (最新,compileOnly)
+    compileOnly 'io.lumine:Mythic-Dist:5.13.1-SNAPSHOT'
 
     // ModelEngine 4 (R4.1.1) - Lumine 官方制品
     compileOnly 'com.ticxo.modelengine:ModelEngine:R4.1.1'
