@@ -40,6 +40,11 @@
 ```yaml
 wind-multiplier: 1.0        # 风力倍率(原版强度为 1.0,调大滚得更快)
 auto-export-resources: true # 首次启动自动导出 MM/ME 资源
+
+# 性能优化(对应原版 1.14 ServerEntityMixin 的同步精简思路)
+performance:
+  distant-physics-distance: 96  # 距最近玩家超过该距离(格)的风滚草物理降频;0 = 关闭
+  distant-physics-interval: 4   # 降频区每 N tick 才运行一次物理与渲染同步
 ```
 
 ### `plugins/MythicMobs/Mobs/Tumbleweed.yml` — 怪物
@@ -81,6 +86,28 @@ auto-export-resources: true # 首次启动自动导出 MM/ME 资源
 | 玩家周边自然生成 | MM RandomSpawner (TumbleweedSpawner.yml) |
 | 战利品表 + 骷髅唱片 | MM Drops |
 | 命名牌命名 → 持久 | 插件监听器(命名后不再消失) |
+
+## 性能优化说明
+
+原版 1.14 分支针对无 AI 的风滚草实体做了网络同步精简(`ServerEntityMixin`,
+涉及 `VecDeltaCodec`/`ServerEntity`/`ServerPlayer`/`Mth`,解决位置增量编码在
+高频 setPosition 下的精度与开销问题)。本插件在服务端等价位置做了如下优化:
+
+1. **玩家距离缓存**:脱管检查(110 格)不再每风滚草每 tick 遍历全服玩家,
+   改为每 10 tick 刷新一次各风滚草到最近玩家的距离(按世界分组一次取位置)。
+   脱管判定最多延迟 10 tick(0.5 秒),阈值远大于误差,玩家无感知。
+2. **远处物理降频**:距最近玩家超过 `distant-physics-distance`(默认 96 格,
+   超过常见渲染视距)的风滚草,物理计算与 ModelEngine 渲染同步降频为每
+   `distant-physics-interval`(默认 4)tick 一次;寿命按真实时间补偿(不会变长),
+   玩家靠近后自动恢复全速。淡出中的风滚草不降频。
+3. **ModelEngine scale 缓存**:正常滚动时模型缩放不变,不再每 tick 重复发送
+   scale 同步包(压扁/恢复/淡出期间缩放每 tick 变化,仍全速同步)。
+4. **对象复用**:每 tick 不再分配摩擦 Vector、旋转用 Quaternionf、移动用 Location;
+   水中检测单次计算。
+5. **实体探测减负**:风滚草静止(速度 < 0.0005)时跳过附近实体探测;探测范围按
+   原版 AABB 修正(y 不再向头顶扩展);按原版 `canBePushed` 语义不推玩家。
+
+参考:原版混入文件 `Common/src/main/java/net/konwboy/tumbleweed/mixins/ServerEntityMixin.java`(1.14 分支)。
 
 ## 模型说明
 

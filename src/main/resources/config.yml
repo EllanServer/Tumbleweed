@@ -17,3 +17,16 @@ wind-multiplier: 1.0
 # 首次启动时是否把内嵌的 MythicMobs 配置与 ModelEngine 蓝图
 # 自动导出到插件目录 (已存在的文件不会被覆盖)。
 auto-export-resources: true
+
+# ============================================================
+#  性能优化 (对应原版 1.14 ServerEntityMixin 的同步精简思路)
+# ============================================================
+#  距最近玩家超过 distant-physics-distance 格的风滚草处于所有玩家
+#  视距之外 (不可见),物理与渲染同步降频为每 distant-physics-interval
+#  tick 一次,可显著降低 ModelEngine 数据包与物理开销;玩家靠近后
+#  自动恢复全速,视觉上无感知。寿命按真实时间补偿,不会变长。
+#  注:脱管检查 (110 格) 不受降频影响,仍每 tick 执行。
+performance:
+  distant-physics-distance: 96   # 0 = 关闭远处降频
+  distant-physics-interval: 4    # 每 N tick 运行一次物理与渲染同步
+

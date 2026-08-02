@@ -10,6 +10,8 @@ import org.joml.Vector3f;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ModelEngine (R4.1.1) 集成:把风滚草的旋转/缩放状态同步到 tumbleweed.bbmodel 的 root 骨骼。
@@ -31,6 +33,9 @@ public final class ModelController {
 
     private ModelController() {
     }
+
+    /** 每实体最近一次同步的 scale,避免 scale 不变时重复发包 (旋转每 tick 都在变,不受影响)。 */
+    private static final Map<UUID, float[]> LAST_SCALE = new ConcurrentHashMap<>();
 
     /** 为实体附加风滚草模型 (幂等:已附加则跳过)。 */
     public static void attach(Entity entity) {
@@ -65,7 +70,15 @@ public final class ModelController {
         }
         ActiveModel model = opt.get();
         try {
-            model.setScale(new Vector3f(scaleX, scaleY, scaleZ));
+            // scale 只在变化时同步 (压扁/恢复/淡出时每 tick 变,正常滚动时稳定不变 → 省去 2/3 的模型同步包)
+            float[] last = LAST_SCALE.get(entity.getUniqueId());
+            if (last == null
+                    || Math.abs(last[0] - scaleX) > 1e-4f
+                    || Math.abs(last[1] - scaleY) > 1e-4f
+                    || Math.abs(last[2] - scaleZ) > 1e-4f) {
+                model.setScale(new Vector3f(scaleX, scaleY, scaleZ));
+                LAST_SCALE.put(entity.getUniqueId(), new float[]{scaleX, scaleY, scaleZ});
+            }
             Map<String, ModelBone> bones = model.getBones();
             if (bones != null) {
                 ModelBone root = bones.get(ROOT_BONE);
@@ -83,6 +96,7 @@ public final class ModelController {
         if (entity == null) {
             return;
         }
+        LAST_SCALE.remove(entity.getUniqueId());
         try {
             ModeledEntity modeled = ModelEngineAPI.getModeledEntity(entity);
             if (modeled != null) {

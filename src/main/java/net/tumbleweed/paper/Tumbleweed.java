@@ -54,6 +54,7 @@ public class Tumbleweed {
     private int fadeProgress;
     private boolean fading;
     private boolean persistent;
+    private int physicsCycle; // 降频调度计数 (距玩家过远时每 N tick 跑一次物理)
 
     // 物理状态
     private final Vector motion = new Vector();
@@ -69,6 +70,9 @@ public class Tumbleweed {
     private final float rotOffsetZ;
 
     private final Random random = new Random();
+
+    // 性能:复用临时对象,避免每 tick 分配
+    private final Quaternionf rotTemp = new Quaternionf();
 
     public Tumbleweed(Entity entity, int size) {
         this.entity = entity;
@@ -96,8 +100,10 @@ public class Tumbleweed {
         // 原版 preTickClient (压扁恢复) —— 在物理前执行
         rotation.tickPre();
 
+        boolean inWater = isInWater();
+
         // 重力
-        if (!isInWater()) {
+        if (!inWater) {
             motion.setY(motion.getY() - GRAVITY);
         }
 
@@ -109,7 +115,7 @@ public class Tumbleweed {
         double windMultiplier = TumbleweedPlugin.getInstance().pluginConfig().windMultiplier();
         double windX = TumbleweedPlugin.windX() * windModX * windMultiplier;
         double windZ = TumbleweedPlugin.windZ() * windModZ * windMultiplier;
-        if (isInWater()) {
+        if (inWater) {
             motion.setX(motion.getX() * 0.95);
             motion.setZ(motion.getZ() * 0.95);
             motion.setY(motion.getY() + 0.01);
@@ -140,8 +146,8 @@ public class Tumbleweed {
             motion.setZ(-prevMotion.getZ() * 0.4);
         }
 
-        // 摩擦
-        motion.multiply(new org.bukkit.util.Vector(FRICTION, FRICTION, FRICTION));
+        // 摩擦 (标量,避免每 tick 分配 Vector)
+        motion.multiply(FRICTION);
 
         // 速度阈值清零 (原版 |motion| < 0.005)
         if (Math.abs(motion.getX()) < MOTION_CUTOFF) {
@@ -157,7 +163,7 @@ public class Tumbleweed {
         collideWithNearbyEntities(manager);
 
         // 卡墙或水中:老化加速
-        age += (horizontalCollision || isInWater()) ? 8 : 1;
+        age += (horizontalCollision || inWater) ? 8 : 1;
         if (age > lifetime && fadeProgress == 0) {
             fading = true;
         }
@@ -170,21 +176,22 @@ public class Tumbleweed {
             }
         }
 
-        // 无玩家时消失 (原版: 最近玩家三维距离 > 110)
-        if (!persistent) {
-            Player nearest = entity.getWorld().getPlayers().stream()
-                    .filter(p -> p.isOnline() && p.getWorld().equals(entity.getWorld()))
-                    .min((a, b) -> Double.compare(a.getLocation().distanceSquared(entity.getLocation()),
-                            b.getLocation().distanceSquared(entity.getLocation())))
-                    .orElse(null);
-            if (nearest != null
-                    && nearest.getLocation().distanceSquared(entity.getLocation()) > DESPAWN_RANGE * DESPAWN_RANGE) {
-                manager.remove(this);
-                return;
-            }
-        }
-
         // 践踏农田已由 MythicMobs 配置实现 (Tumbleweed.yml 的 TumbleweedTrample 技能)
+        // 脱管检查 (玩家离开 110 格) 由 TumbleweedManager 统一处理,使用缓存的最近玩家距离
+    }
+
+    /** 降频跳过物理 tick 时,仅推进寿命,保持风滚草按真实时间老化。 */
+    public void ageTick(int ticks) {
+        age += ticks;
+        if (age > lifetime && fadeProgress == 0) {
+            fading = true;
+        }
+    }
+
+    /** 降频调度:距玩家过远时每 interval tick 返回一次 true (返回 true 的 tick 才跑物理)。 */
+    public boolean shouldRunPhysics(int interval) {
+        physicsCycle++;
+        return physicsCycle % Math.max(1, interval) == 0;
     }
 
     /** 逐轴 AABB 方块碰撞移动 (模拟原版 move(MoverType.SELF, ...))。 */
@@ -224,8 +231,11 @@ public class Tumbleweed {
             y += motion.getY();
         }
 
-        Location target = new Location(entity.getWorld(), x, y, z, loc.getYaw(), loc.getPitch());
-        entity.teleport(target);
+        // 复用读取时的 Location,避免每 tick 额外分配
+        loc.setX(x);
+        loc.setY(y);
+        loc.setZ(z);
+        entity.teleport(loc);
     }
 
     private boolean collidesWithBlocks(World world, BoundingBox bb) {
@@ -272,17 +282,25 @@ public class Tumbleweed {
         float motionAngleZ = (float) (2 * Math.PI * motion.getX() / (ROT_DIVISOR * size));
 
         // JOML rotateXYZ(ax, 0, az) 生成 Qx*Qz;quat.mul(...) 右乘 → quat * Qx * Qz,与原版一致
-        rotation.quat.mul(new Quaternionf().rotateXYZ(motionAngleX, 0, motionAngleZ));
+        rotation.quat.mul(rotTemp.rotateXYZ(motionAngleX, 0, motionAngleZ));
     }
 
     /** 原版 collideWithNearbyEntities:推开附近实体;空矿车可骑乘。 */
     private void collideWithNearbyEntities(TumbleweedManager manager) {
+        // 静止时无推力 (推力基于自身速度,此时约为 0),跳过实体探测
+        double speedSq = motion.getX() * motion.getX() + motion.getZ() * motion.getZ();
+        if (speedSq < 0.0005) {
+            return;
+        }
+
         double width = mcSize();
-        Location loc = entity.getLocation();
+        // 原版 AABB 仅 x/z 扩展 0.2,y 不扩展;以 AABB 中心为探测中心避免头顶实体被误推
+        Location center = entity.getLocation().add(0, width / 2, 0);
+        double range = width / 2 + 0.2;
 
         // 26.2: getNearbyEntities(Location, dx, dy, dz, Predicate) 返回 Collection
-        Collection<Entity> nearby = entity.getWorld().getNearbyEntities(loc, width / 2 + 0.2, width + 1,
-                width / 2 + 0.2, e -> e != entity && !manager.isTumbleweed(e));
+        Collection<Entity> nearby = entity.getWorld().getNearbyEntities(center, range, range, range,
+                e -> e != entity && !manager.isTumbleweed(e));
 
         for (Entity e : nearby) {
             // 空矿车:骑乘 (原版特性)
@@ -294,13 +312,13 @@ public class Tumbleweed {
                 continue;
             }
 
-            // 推开附近实体 (玩家/生物)
+            // 推开附近生物 (原版仅推 canBePushed=true 的实体,玩家 canBePushed=false 不受推)
             double pushX = motion.getX() * 0.3;
             double pushZ = motion.getZ() * 0.3;
             if (pushX * pushX + pushZ * pushZ < 0.0001) {
                 continue;
             }
-            if (e instanceof LivingEntity living) {
+            if (e instanceof LivingEntity living && !(e instanceof Player)) {
                 Vector push = living.getVelocity().add(new Vector(pushX, 0.15, pushZ));
                 living.setVelocity(push);
             }
