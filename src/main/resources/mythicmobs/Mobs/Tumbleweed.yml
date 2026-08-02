@@ -35,9 +35,11 @@ Tumbleweed:
   - INVULNERABLE_EXPLOSION: 1
   # 原版特性:命名牌可命名风滚草(插件监听器会额外标记为持久)
   Skills:
-  # --- 践踏农田 (原版 FarmlandMixin:落地时 70% 概率毁田) ---
+  # --- 践踏农田 (原版 FarmlandMixin:落地瞬间 70% 概率毁田) ---
+  # MM 无 onLand 触发器,以 ~onTimer:10 + chance=0.7 近似:
+  # 每 0.5 秒 70% 概率 (风滚草在农田上弹跳时落地频率相近)
   # onblock 条件检查脚下方块,仅当踩在农田上才转化
-  - skill:TumbleweedTrample ~onTimer:10
+  - skill:TumbleweedTrample ~onTimer:10 chance=0.7
 
 # --- 践踏农田技能 ---
 TumbleweedTrample:
