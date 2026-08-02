@@ -16,10 +16,7 @@ public class PluginConfig {
     /** 风力倍率 (原版 mod 的 windMultiplier)。 */
     private double windMultiplier;
 
-    /** 渲染后端:auto / craftengine / modelengine。 */
-    private String renderer;
-
-    /** 是否把 jar 内嵌的 MythicMobs 配置与 CraftEngine/ModelEngine 资源导出到插件目录。 */
+    /** 是否把 jar 内嵌的 MythicMobs 配置与 ModelEngine 蓝图导出到插件目录。 */
     private boolean autoExportResources;
 
     public PluginConfig(FileConfiguration cfg) {
@@ -31,20 +28,11 @@ public class PluginConfig {
         if (windMultiplier <= 0 || windMultiplier > 10) {
             windMultiplier = 1.0;
         }
-        renderer = cfg.getString("renderer", "auto");
-        if (!"auto".equalsIgnoreCase(renderer) && !"craftengine".equalsIgnoreCase(renderer)
-                && !"modelengine".equalsIgnoreCase(renderer)) {
-            renderer = "auto";
-        }
         autoExportResources = cfg.getBoolean("auto-export-resources", true);
     }
 
     public double windMultiplier() {
         return windMultiplier;
-    }
-
-    public String renderer() {
-        return renderer;
     }
 
     public boolean isAutoExportResources() {

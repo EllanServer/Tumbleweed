@@ -5,8 +5,8 @@
 
 - 物理、旋转、压扁、寿命/淡出由本插件实现(MM 无法配置的部分)
 - 怪物属性、践踏、掉落、骷髅 AI、自然生成全部由 MythicMobs 配置驱动
-- 渲染默认走 **craft-engine 物品模型 + ItemDisplay 实体**(无客户端模组、性能更好),
-  未装 CraftEngine 时自动回退 **ModelEngine** 骨骼模型
+- 3D 渲染由 ModelEngine 承担,模型为**原版 mod 的原始模型结构**
+  (9 块交叉薄板编织球 + 原版 16×16 纹理,取自 konwboj/Tumbleweed, LGPL-3.0)
 
 ## 前置依赖
 
@@ -14,10 +14,7 @@
 | --- | --- | --- |
 | Paper | 26.2+ | 服务端(1.21.9+ 协议) |
 | MythicMobs | 5.13+ | 怪物框架(本文档所有行为配置均基于 5.13 语法) |
-| CraftEngine | 26.7.4 | 渲染:物品模型 + 资源包(默认渲染后端,二选一) |
-| ModelEngine | R4.1.1 | 渲染:3D 骨骼模型(CraftEngine 缺失时的回退,二选一) |
-
-> CraftEngine 与 ModelEngine 至少装一个;`config.yml` 的 `renderer` 可强制指定。
+| ModelEngine | R4.1.1 | 3D 模型渲染(蓝图 `tumbleweed.bbmodel`) |
 
 ## 安装
 
@@ -29,19 +26,12 @@
 | `plugins/MythicMobs/Mobs/Tumbleweed.yml` | 风滚草怪物定义 |
 | `plugins/MythicMobs/Mobs/Skeleton.yml` | 骷髅射击 AI(覆盖原版骷髅) |
 | `plugins/MythicMobs/Spawners/TumbleweedSpawner.yml` | 自然生成器 (RandomSpawner) |
-| `plugins/CraftEngine/resources/tumbleweed/pack.yml` | craft-engine 包定义(命名空间 `tumbleweed`) |
-| `plugins/CraftEngine/resources/tumbleweed/configuration/items.yml` | craft-engine 物品定义 |
-| `plugins/CraftEngine/resources/tumbleweed/resourcepack/.../tumbleweed.json` | 风滚草物品模型(圆柱球近似) |
-| `plugins/CraftEngine/resources/tumbleweed/resourcepack/.../tumbleweed.png` | 模型纹理 |
-| `plugins/ModelEngine/blueprints/tumbleweed.bbmodel` | ModelEngine 蓝图(回退用) |
-| `plugins/ModelEngine/textures/tumbleweed.png` | ModelEngine 纹理(回退用) |
+| `plugins/ModelEngine/blueprints/tumbleweed.bbmodel` | 3D 模型蓝图(原版模型结构:9 板编织球) |
+| `plugins/ModelEngine/textures/tumbleweed.png` | 模型纹理(原版 16×16 纹理) |
 
-3. 加载配置:
-   - 控制台执行 `/mm reload` 加载怪物配置;
-   - 若使用 craft-engine 渲染:执行 **`/ce reload all`**(首次安装必须,把导出的模型/贴图打包进资源包,并让玩家自动接收);
-   - 若使用 ModelEngine 渲染:执行 `/me reload` 加载模型蓝图。
-4. 若导出被关闭(`config.yml` 中 `auto-export-resources: false`),可手动从 jar 内提取
-   `mythicmobs/`、`craftengine/`、`modelengine/` 目录按上述路径放置。
+3. 服务器控制台执行 `/mm reload` 加载怪物配置,执行 `/me reload` 加载模型蓝图。
+4. 若导出被关闭(`config.yml` 中 `auto-export-resources: false`),
+   可手动从 jar 内提取 `mythicmobs/`、`modelengine/` 目录按上述路径放置。
 
 ## 配置说明
 
@@ -49,8 +39,7 @@
 
 ```yaml
 wind-multiplier: 1.0        # 风力倍率(原版强度为 1.0,调大滚得更快)
-renderer: auto              # auto(默认,优先 CraftEngine)/ craftengine / modelengine
-auto-export-resources: true # 首次启动自动导出 MM/CE/ME 资源
+auto-export-resources: true # 首次启动自动导出 MM/ME 资源
 ```
 
 ### `plugins/MythicMobs/Mobs/Tumbleweed.yml` — 怪物
@@ -81,23 +70,22 @@ auto-export-resources: true # 首次启动自动导出 MM/CE/ME 资源
 | 原版行为 | 实现方式 |
 | --- | --- |
 | 风力 -1/16、重力 0.012、摩擦 0.98、落地反弹 | 插件物理 (Tumbleweed.java) |
-| 旋转滚动 + 落地压扁 | 插件计算四元数/压扁 → ItemDisplay 变换矩阵(或 ModelEngine root 骨骼) |
-| 水中减速、卡墙老化加速、寿命淡出、脱管消失 | 插件(淡出 = 尺寸渐变模拟渐隐) |
+| 旋转滚动 + 落地压扁 | 插件计算四元数/压扁 → ModelEngine root 骨骼 |
+| 水中减速、卡墙老化加速、寿命淡出、脱管消失 | 插件 |
 | 践踏农田 (70% + doMobGriefing) | MM 技能 `TumbleweedTrample` |
 | 骷髅射击风滚草 | MM 技能 + AI 条件 (Skeleton.yml) |
 | 玩家周边自然生成 | MM RandomSpawner (TumbleweedSpawner.yml) |
 | 战利品表 + 骷髅唱片 | MM Drops |
 | 命名牌命名 → 持久 | 插件监听器(命名后不再消失) |
 
-## 渲染层说明
+## 模型说明
 
-- **craft-engine 模式(默认)**:每个风滚草挂一个 `ItemDisplay` 实体,物品为
-  `tumbleweed:tumbleweed`(纸 + 自定义模型,模型由 craft-engine 资源包下发)。
-  每 tick 只更新变换矩阵(围绕球心缩放/旋转 + 平移到碰撞箱中心),无客户端模组。
-- **ModelEngine 模式(回退)**:每个风滚草挂 `tumbleweed.bbmodel`,每 tick 同步
-  root 骨骼四元数与缩放。
-- 模型为 5 层 × 12 段圆柱球近似(60 元素),视觉直径与碰撞箱一致(0.75 + size/8)。
-- 切换渲染后端只需在 `config.yml` 改 `renderer` 并重启。
+- `tumbleweed.bbmodel` 按原版 mod 的 `ModelTumbleweed.java` 重建:
+  4 组共 9 块交叉薄板(正交组 + 绕 Y/Z/X 各 45° 组),与原版一致的编织球造型;
+  模型中心在实体脚底上方 0.25 格(原版 `GlStateManager.translate(y + 0.25F)`),直径 16px(1 格)。
+- 纹理为原版 `textures/entity/tumbleweed.png`(16×16,半透明编织镂空)。
+- 素材来源:konwboj/Tumbleweed (LGPL-3.0),生成脚本 `tools/generate_bbmodel.py`。
+- 渲染缩放 `1 + size/8`、淡出 alpha 渐变均与原版 RenderTumbleweed 一致。
 
 ## 构建
 
@@ -109,6 +97,3 @@ git push origin paper-port   # 自动编译并上传 jar artifact
 ./gradlew build
 # 产物: build/libs/Tumbleweed-1.0.0.jar
 ```
-
-> 修改物品模型后重新生成 craft-engine 资源:
-> `python tools/generate_ce_model.py`(输出到 `src/main/resources/craftengine/`)。

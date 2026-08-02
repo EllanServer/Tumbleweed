@@ -15,8 +15,6 @@ repositories {
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
     // MythicMobs & ModelEngine (Lumine official maven)
     maven { url 'https://mvn.lumine.io/repository/maven-public/' }
-    // CraftEngine (MoMi)
-    maven { url 'https://repo.momirealms.net/releases' }
 }
 
 dependencies {
@@ -26,12 +24,8 @@ dependencies {
     // MythicMobs 5.13.1 (最新,compileOnly)
     compileOnly 'io.lumine:Mythic-Dist:5.13.1-SNAPSHOT'
 
-    // ModelEngine 4 (R4.1.1) - Lumine 官方制品 (渲染回退)
+    // ModelEngine 4 (R4.1.1) - Lumine 官方制品
     compileOnly 'com.ticxo.modelengine:ModelEngine:R4.1.1'
-
-    // CraftEngine 26.7.4 (最新,compileOnly) - 物品模型 + ItemDisplay 渲染 (默认)
-    compileOnly 'net.momirealms:craft-engine-bukkit:26.7.4'
-    compileOnly 'net.momirealms:craft-engine-core:26.7.4'
 }
 
 java {
