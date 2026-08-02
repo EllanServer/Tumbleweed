@@ -191,6 +191,48 @@ public class TumbleweedManager {
         return tumbleweeds.get(entity.getUniqueId());
     }
 
+    /**
+     * 生成一只风滚草 (由 TumbleweedSpawner 调用)。
+     * 经 MythicMobs API 创建 MM 实体 (怪物属性/践踏/掉落由 Tumbleweed.yml 配置驱动),
+     * 创建成功后立即注册物理, 与 MythicListener 的事件注册幂等。
+     */
+    public boolean spawn(org.bukkit.World world, double x, double y, double z) {
+        io.lumine.mythic.core.mobs.ActiveMob mob;
+        try {
+            mob = io.lumine.mythic.bukkit.MythicBukkit.inst().getMobManager()
+                    .spawnMob("Tumbleweed", new Location(world, x, y, z));
+        } catch (Throwable t) {
+            plugin.getLogger().warning("MythicMobs 生成风滚草失败: " + t.getMessage());
+            return false;
+        }
+        if (mob == null || mob.getEntity() == null) {
+            return false;
+        }
+        Entity entity = mob.getEntity().getBukkitEntity();
+        if (entity == null || entity.isDead() || !entity.isValid()) {
+            return false;
+        }
+        if (entity instanceof org.bukkit.entity.LivingEntity living) {
+            living.setAI(false);
+            living.setCollidable(false);
+        }
+        Tumbleweed tw = new Tumbleweed(entity, 1 + new java.util.Random().nextInt(4));
+        tw.setPersistent(false);
+        register(tw);
+        return true;
+    }
+
+    /** 指定世界内的活跃风滚草数量 (生成上限判定用)。 */
+    public int countInWorld(org.bukkit.World world) {
+        int n = 0;
+        for (Tumbleweed tw : tumbleweeds.values()) {
+            if (tw.entity().getWorld() == world) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     /** 判断实体是否为风滚草 (用于避免互推)。 */
     public boolean isTumbleweed(Entity entity) {
         return tumbleweeds.containsKey(entity.getUniqueId());

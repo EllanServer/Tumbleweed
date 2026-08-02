@@ -5,8 +5,9 @@
 #   - 怪物属性 / 血量 / 伤害免疫        -> plugins/MythicMobs/Mobs/Tumbleweed.yml
 #   - 践踏农田 / 掉落表                 -> plugins/MythicMobs/Mobs/Tumbleweed.yml
 #   - 骷髅射击风滚草 AI                 -> plugins/MythicMobs/Mobs/Skeleton.yml
-#   - 自然生成 (生物群系/概率/距离)      -> plugins/MythicMobs/Spawners/TumbleweedSpawner.yml
 #   - 3D 模型 / 纹理                    -> plugins/ModelEngine/blueprints/tumbleweed.bbmodel
+#  自然生成由本插件按原版 mod 的 Spawner 逻辑实现 (下方 spawner 段),
+#  经 MythicMobs API 创建实体,怪物属性/践踏/掉落仍由 MM 配置驱动。
 #  本文件只保留插件自身物理相关的参数。
 # ============================================================
 
@@ -17,6 +18,23 @@ wind-multiplier: 1.0
 # 首次启动时是否把内嵌的 MythicMobs 配置与 ModelEngine 蓝图
 # 自动导出到插件目录 (已存在的文件不会被覆盖)。
 auto-export-resources: true
+
+# ============================================================
+#  自然生成 (原版 mod 1.14 Spawner 逻辑,插件实现)
+# ============================================================
+#  生成规则固定对齐原版,其余细节 (非配置项):
+#   - 每 10 秒对每个世界检查一次,受 domobspawning 游戏规则控制
+#   - 候选范围:每个非旁观玩家所在区块周围 ±8 区块 (排除角落),
+#     世界边界内,区块中心群系为干燥/沙地群系
+#   - 生成点:必须落在干灌木 (dead_bush) 上且可见天空,±5 格找位
+#     尝试最多 10 次;生成点 32 格内无玩家、世界出生点 24 格外
+#   - 20% 概率一次生成两只;实体尺寸随机 1~4
+#  注意:若服务器上残留旧版导出的 plugins/MythicMobs/Spawners/
+#  TumbleweedSpawner.yml,请手动删除,否则会与本生成器双重生成。
+spawner:
+  enabled: true          # 是否启用自然生成
+  chance: 0.5            # 每个候选区块的生成概率 (原版 spawnChance: 0.5)
+  max-per-player: 8      # 每玩家数量上限 (原版 maxPerPlayer: 8,按候选区比例折算)
 
 # ============================================================
 #  性能优化 (对应原版 1.14 ServerEntityMixin 的同步精简思路)

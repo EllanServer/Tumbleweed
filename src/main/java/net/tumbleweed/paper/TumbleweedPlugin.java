@@ -19,9 +19,10 @@ import java.util.logging.Level;
  *
  * 架构分工 (能用配置表达的绝不用代码):
  *  - MythicMobs  : 怪物定义 (Tumbleweed.yml)、践踏农田技能、掉落表、
- *                  骷髅射击 AI (Skeleton.yml)、自然生成器 (TumbleweedSpawner.yml)
+ *                  骷髅射击 AI (Skeleton.yml)
  *  - ModelEngine : 3D 模型渲染 (tumbleweed.bbmodel),插件驱动骨骼旋转/缩放
- *  - 本插件      : 风力物理、旋转/压扁、碰撞、寿命与淡出消失 (MM 无法配置的部分)
+ *  - 本插件      : 风力物理、旋转/压扁、碰撞、寿命与淡出消失、自然生成
+ *                  (原版 Spawner 逻辑,经 MM API 生成实体,保留 MM 配置生效)
  */
 public class TumbleweedPlugin extends JavaPlugin {
 
@@ -36,6 +37,7 @@ public class TumbleweedPlugin extends JavaPlugin {
 
     private PluginConfig pluginConfig;
     private TumbleweedManager tumbleweedManager;
+    private TumbleweedSpawner spawner;
 
     public static TumbleweedPlugin getInstance() {
         return instance;
@@ -87,6 +89,12 @@ public class TumbleweedPlugin extends JavaPlugin {
         }
 
         tumbleweedManager = new TumbleweedManager(this);
+        // 自然生成:由插件按原版 Spawner 逻辑实现 (经 MythicMobs API 生成 MM 实体),
+        // MM 的 RandomSpawner 表达不了干灌木限定/±5 偏移/20% 成双/动态上限等细节
+        spawner = new TumbleweedSpawner(this);
+        if (pluginConfig.spawnerEnabled()) {
+            spawner.start();
+        }
         // 可选:CraftEngine 可见性判定 (视锥+遮挡)。未安装 CE 时优雅降级为 96 格球半径降频。
         if (pluginConfig.cullingEnabled() && getServer().getPluginManager().getPlugin("CraftEngine") != null) {
             try {
@@ -111,6 +119,9 @@ public class TumbleweedPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (spawner != null) {
+            spawner.stop();
+        }
         if (tumbleweedManager != null) {
             tumbleweedManager.stop();
         }
@@ -119,11 +130,12 @@ public class TumbleweedPlugin extends JavaPlugin {
 
     /**
      * 将 jar 内嵌的 MythicMobs 配置与 ModelEngine 蓝图导出到服务器插件目录。
+     * 注:生成器已由本插件按原版逻辑接管,不再导出 MM 的 TumbleweedSpawner.yml
+     * (服务器上残留的旧文件需手动删除,否则会与插件生成器双重生成)。
      */
     private void exportResources() {
         export("/mythicmobs/Mobs/Tumbleweed.yml", "plugins/MythicMobs/Mobs/Tumbleweed.yml");
         export("/mythicmobs/Mobs/Skeleton.yml", "plugins/MythicMobs/Mobs/Skeleton.yml");
-        export("/mythicmobs/Spawners/TumbleweedSpawner.yml", "plugins/MythicMobs/Spawners/TumbleweedSpawner.yml");
         export("/modelengine/blueprints/tumbleweed.bbmodel", "plugins/ModelEngine/blueprints/tumbleweed.bbmodel");
         export("/modelengine/textures/tumbleweed.png", "plugins/ModelEngine/textures/tumbleweed.png");
     }

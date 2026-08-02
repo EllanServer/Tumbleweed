@@ -6,8 +6,9 @@ import org.bukkit.configuration.file.FileConfiguration;
  * 插件配置 (config.yml)。
  *
  * 设计原则:能用 MythicMobs 配置表达的功能一律交给 MM 配置
- * (怪物属性 / 践踏农田 / 掉落 / 骷髅射击 / 自然生成),本配置
- * 只保留插件自身物理相关的少量参数。
+ * (怪物属性 / 践踏农田 / 掉落 / 骷髅射击),本配置只保留插件自身
+ * 物理相关的少量参数,以及自然生成的概率/上限 (生成逻辑在插件内
+ * 按原版 Spawner 实现,因 MM 的 RandomSpawner 表达不了干灌木限定等细节)。
  */
 public class PluginConfig {
 
@@ -31,6 +32,15 @@ public class PluginConfig {
     /** CE 判定快筛:距玩家不超过该距离 (格) 的风滚草始终全速。 */
     private int cullingNearDistance;
 
+    /** 自然生成 (原版 Spawner 逻辑,插件实现):是否启用。 */
+    private boolean spawnerEnabled;
+
+    /** 自然生成:每个候选区块的生成概率 (原版 spawnChance: 0.5)。 */
+    private double spawnerChance;
+
+    /** 自然生成:每玩家数量上限 (原版 maxPerPlayer: 8,按候选区比例)。 */
+    private int spawnerMaxPerPlayer;
+
     public PluginConfig(FileConfiguration cfg) {
         this.cfg = cfg;
     }
@@ -45,6 +55,9 @@ public class PluginConfig {
         distantPhysicsInterval = Math.max(1, cfg.getInt("performance.distant-physics-interval", 4));
         cullingEnabled = cfg.getBoolean("performance.culling-enabled", true);
         cullingNearDistance = Math.max(1, cfg.getInt("performance.culling-near-distance", 32));
+        spawnerEnabled = cfg.getBoolean("spawner.enabled", true);
+        spawnerChance = cfg.getDouble("spawner.chance", 0.5);
+        spawnerMaxPerPlayer = Math.max(1, cfg.getInt("spawner.max-per-player", 8));
     }
 
     public double windMultiplier() {
@@ -69,5 +82,17 @@ public class PluginConfig {
 
     public int cullingNearDistance() {
         return cullingNearDistance;
+    }
+
+    public boolean spawnerEnabled() {
+        return spawnerEnabled;
+    }
+
+    public double spawnerChance() {
+        return spawnerChance;
+    }
+
+    public int spawnerMaxPerPlayer() {
+        return spawnerMaxPerPlayer;
     }
 }
