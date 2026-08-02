@@ -22,3 +22,6 @@ libs/
 
 # NarraFork 会话数据
 .narrafork/
+
+# 本地工具临时文件
+md*.json
