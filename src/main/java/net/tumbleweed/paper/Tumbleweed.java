@@ -1,6 +1,5 @@
 package net.tumbleweed.paper;
 
-import net.momirealms.craftengine.bukkit.entity.furniture.BukkitFurniture;
 import net.tumbleweed.paper.model.RotationState;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -51,8 +50,6 @@ public class Tumbleweed {
     private final double windModZ;
     private final int lifetime;
 
-    private BukkitFurniture furniture;    // craft-engine 家具 (显示 + 交互,CE 托管)
-
     private int age;
     private int fadeProgress;
     private boolean fading;
@@ -66,7 +63,7 @@ public class Tumbleweed {
     private boolean horizontalCollision;
     private boolean prevVerticalCollision;
 
-    // 旋转状态 (原版客户端逻辑,在服务端计算后交给 CE 家具渲染)
+    // 旋转状态 (原版客户端逻辑,在服务端计算后交给 ModelEngine)
     private final RotationState rotation;
     private final float rotOffsetX;
     private final float rotOffsetY;
@@ -345,22 +342,6 @@ public class Tumbleweed {
 
     public Entity entity() {
         return entity;
-    }
-
-    /** craft-engine 家具 (显示实体 + 交互 hitbox,由 CE 托管);未创建时为 null。 */
-    public BukkitFurniture furniture() {
-        return furniture;
-    }
-
-    public void setFurniture(BukkitFurniture furniture) {
-        this.furniture = furniture;
-    }
-
-    /** 本 tick 是否在水平移动 (用于决定家具 moveTo 是否必要)。 */
-    public boolean isMoving() {
-        double x = motion.getX();
-        double z = motion.getZ();
-        return x * x + z * z > 0.0001;
     }
 
     public int size() {

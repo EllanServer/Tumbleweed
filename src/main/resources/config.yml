@@ -6,9 +6,7 @@
 #   - 践踏农田 / 掉落表                 -> plugins/MythicMobs/Mobs/Tumbleweed.yml
 #   - 骷髅射击风滚草 AI                 -> plugins/MythicMobs/Mobs/Skeleton.yml
 #   - 自然生成 (生物群系/概率/距离)      -> plugins/MythicMobs/Spawners/TumbleweedSpawner.yml
-#   - 3D 模型 / 纹理 / 渲染与交互        -> plugins/CraftEngine/resources/tumbleweed/
-#     (家具定义 configuration/furniture/tumbleweed.yml,
-#      模型 resourcepack/assets/tumbleweed/models/item/tumbleweed.json)
+#   - 3D 模型 / 纹理                    -> plugins/ModelEngine/blueprints/tumbleweed.bbmodel
 #  本文件只保留插件自身物理相关的参数。
 # ============================================================
 
@@ -16,18 +14,27 @@
 # 调大 -> 风滚草滚得更快;调小 -> 更慢。
 wind-multiplier: 1.0
 
-# 首次启动时是否把内嵌的 MythicMobs 配置与 CraftEngine 家具包
-# 自动导出到插件目录 (已存在的文件不会被覆盖;CE 资源需 /ce reload all 生效)。
+# 首次启动时是否把内嵌的 MythicMobs 配置与 ModelEngine 蓝图
+# 自动导出到插件目录 (已存在的文件不会被覆盖)。
 auto-export-resources: true
 
 # ============================================================
 #  性能优化 (对应原版 1.14 ServerEntityMixin 的同步精简思路)
 # ============================================================
 #  距最近玩家超过 distant-physics-distance 格的风滚草处于所有玩家
-#  视距之外 (不可见),物理与家具同步降频为每 distant-physics-interval
-#  tick 一次,可显著降低物理开销与 CE 家具同步包;玩家靠近后
+#  视距之外 (不可见),物理与渲染同步降频为每 distant-physics-interval
+#  tick 一次,可显著降低 ModelEngine 数据包与物理开销;玩家靠近后
 #  自动恢复全速,视觉上无感知。寿命按真实时间补偿,不会变长。
 #  注:脱管检查 (110 格) 不受降频影响,仍每 tick 执行。
 performance:
   distant-physics-distance: 96   # 0 = 关闭远处降频
   distant-physics-interval: 4    # 每 N tick 运行一次物理与渲染同步
+
+  # 使用 CraftEngine 的可见性判定 (视锥 + 方块遮挡采样) 优化同步:
+  # 距玩家 culling-near-distance 之外、且在玩家视锥外或被方块遮挡的
+  # 风滚草同样进入降频 (比单纯球半径更省包)。需在服务器安装 CraftEngine,
+  # 未安装时自动回退为上方纯距离降频,行为完全一致。
+  # 注:请同时执行 /ce reload all 让 CE 完成资源加载后再启用本插件。
+  culling-enabled: true          # 是否使用 CE 可见性判定
+  culling-near-distance: 32      # 此距离内的风滚草始终全速 (玩家近处不允许卡顿)
+

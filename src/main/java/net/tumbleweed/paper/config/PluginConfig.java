@@ -16,7 +16,7 @@ public class PluginConfig {
     /** 风力倍率 (原版 mod 的 windMultiplier)。 */
     private double windMultiplier;
 
-    /** 是否把 jar 内嵌的 MythicMobs 配置与 craft-engine 家具资源导出到插件目录。 */
+    /** 是否把 jar 内嵌的 MythicMobs 配置与 ModelEngine 蓝图导出到插件目录。 */
     private boolean autoExportResources;
 
     /** 远处降频:距最近玩家超过该距离 (格) 的风滚草物理降频;0 = 关闭。 */
@@ -24,6 +24,12 @@ public class PluginConfig {
 
     /** 远处降频:每 N tick 才运行一次物理与渲染同步。 */
     private int distantPhysicsInterval;
+
+    /** 是否使用 CraftEngine 的视锥+遮挡判定优化同步 (需安装 CraftEngine)。 */
+    private boolean cullingEnabled;
+
+    /** CE 判定快筛:距玩家不超过该距离 (格) 的风滚草始终全速。 */
+    private int cullingNearDistance;
 
     public PluginConfig(FileConfiguration cfg) {
         this.cfg = cfg;
@@ -37,6 +43,8 @@ public class PluginConfig {
         autoExportResources = cfg.getBoolean("auto-export-resources", true);
         distantPhysicsDistance = Math.max(0, cfg.getInt("performance.distant-physics-distance", 96));
         distantPhysicsInterval = Math.max(1, cfg.getInt("performance.distant-physics-interval", 4));
+        cullingEnabled = cfg.getBoolean("performance.culling-enabled", true);
+        cullingNearDistance = Math.max(1, cfg.getInt("performance.culling-near-distance", 32));
     }
 
     public double windMultiplier() {
@@ -53,5 +61,13 @@ public class PluginConfig {
 
     public int distantPhysicsInterval() {
         return distantPhysicsInterval;
+    }
+
+    public boolean cullingEnabled() {
+        return cullingEnabled;
+    }
+
+    public int cullingNearDistance() {
+        return cullingNearDistance;
     }
 }

@@ -1,6 +1,0 @@
-items:
-  tumbleweed:tumbleweed:
-    material: paper
-    data:
-      item_name: "<!i><#C8A24B>风滚草"
-    model: tumbleweed:item/tumbleweed

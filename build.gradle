@@ -1,4 +1,4 @@
-// Tumbleweed - Paper 26.2 plugin (MythicMobs + CraftEngine furniture integration)
+// Tumbleweed - Paper 26.2 plugin (MythicMobs + ModelEngine integration)
 // Groovy DSL:与 Java 25 上的 Gradle 8.14+ 完全兼容 (Kotlin DSL 在 JDK 25 有 class major version 限制)
 
 plugins {
@@ -7,16 +7,16 @@ plugins {
 
 group = 'net.tumbleweed'
 version = '1.0.0'
-description = 'Tumbleweed - Paper plugin rewrite of the Tumbleweed mod, powered by MythicMobs & CraftEngine'
+description = 'Tumbleweed - Paper plugin rewrite of the Tumbleweed mod, powered by MythicMobs & ModelEngine'
 
 repositories {
     mavenCentral()
     // Paper API
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
-    // MythicMobs (Lumine official maven)
+    // MythicMobs & ModelEngine (Lumine official maven)
     maven { url 'https://mvn.lumine.io/repository/maven-public/' }
-    // CraftEngine (MoMi)
-    maven { url 'https://repo.momirealms.net/releases' }
+    // CraftEngine (Momirealms official maven,可选依赖,仅用于可见性判定优化)
+    maven { url 'https://repo.momirealms.net/releases/' }
 }
 
 dependencies {
@@ -26,9 +26,12 @@ dependencies {
     // MythicMobs 5.13.1 (最新,compileOnly)
     compileOnly 'io.lumine:Mythic-Dist:5.13.1-SNAPSHOT'
 
-    // CraftEngine 26.7.4 (最新,compileOnly) - 家具托管渲染 + 交互事件
-    compileOnly 'net.momirealms:craft-engine-bukkit:26.7.4'
+    // ModelEngine 4 (R4.1.1) - Lumine 官方制品 (渲染)
+    compileOnly 'com.ticxo.modelengine:ModelEngine:R4.1.1'
+
+    // CraftEngine 26.7.4 - Momirealms (可选:EntityCulling 可见性判定优化)
     compileOnly 'net.momirealms:craft-engine-core:26.7.4'
+    compileOnly 'net.momirealms:craft-engine-bukkit:26.7.4'
 }
 
 java {
