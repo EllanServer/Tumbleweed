@@ -1,0 +1,62 @@
+# =============================================================
+#  Tumbleweed - MythicMobs 怪物定义
+#  由 TumbleweedPaper 插件驱动物理与行为,本文件只负责:
+#   - 怪物实体基础属性 (无 AI、静默、防掉落)
+#   - 血量与伤害
+#   - 占位技能钩子 (插件通过 MythicMob 事件接管)
+# =============================================================
+Tumbleweed:
+  Type: PIG
+  Display: '风滚草'
+  Health: 1
+  Damage: 0
+  Options:
+    # 无 AI:位置/速度完全由插件物理驱动
+    NoAI: true
+    # 静默,不发出猪叫
+    Silent: true
+    # 不生成装备
+    PreventRandomEquipment: true
+    # 不使用 MythicMobs 默认掉落 (战利品由插件按原版战利品表处理)
+    PreventOtherDrops: true
+    PreventMobKillDrops: true
+    # 不会因太阳着火
+    PreventSunburn: true
+    # 不参与 MythicMobs 反刷怪计时/天然生成
+    Despawn: PERSISTENT
+    # 防改名/标签混淆
+    PreventRenaming: false
+    # 推搡免疫:物理由插件接管,避免服务器 push 干扰
+    PreventPush: false
+    # 不被击退 (风滚草滚走而不是被击退)
+    PreventKnockback: false
+    # 忽略移动限制
+    PreventMobAI: true
+    # 风滚草不能被驯服/骑乘
+    PreventLeashing: true
+    # 不显示血条
+    ShowHealth: false
+    # 立即刷新 (服务器重启后重生)
+    DespawnTicks: 0
+    # 死亡不掉落经验 (经验由插件战利品替代)
+    PreventExperienceDrops: true
+    # 名称标签隐藏
+    NoDamageTicks: 0
+  DamageModifiers:
+    - VILLAGER 0
+    - IGNITED_TNT 0
+    - CACTUS 0
+    - FIRE 0
+    - LAVA 0
+    - FALL 0
+    - SUFFOCATION 0
+    - DROWNING 0
+    - STARVATION 0
+    - VOID 0
+    - LIGHTNING 0
+    - DRAGON_BREATH 0
+    - WITHER 0
+    - POISON 0
+  # 技能钩子:所有物理/行为均由 TumbleweedPaper 插件在
+  # MythicMobSpawnEvent / MythicMobDeathEvent 中接管
+  Skills: []

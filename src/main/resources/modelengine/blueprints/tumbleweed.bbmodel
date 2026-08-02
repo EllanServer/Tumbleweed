@@ -1,0 +1,317 @@
+{
+  "meta": {
+    "format_version": "4.5",
+    "model_format": "free",
+    "box_uv": true
+  },
+  "name": "tumbleweed",
+  "model_identifier": "tumbleweed",
+  "box_uv": true,
+  "resolution": {
+    "width": 32,
+    "height": 32
+  },
+  "visible_box": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "elements": [
+    {
+      "name": "board_xy",
+      "box_uv": true,
+      "rescale": false,
+      "locked": false,
+      "from": [
+        0,
+        4,
+        -8
+      ],
+      "to": [
+        1,
+        20,
+        8
+      ],
+      "uv_offset": [
+        0.0,
+        0.0
+      ],
+      "rotation": {
+        "angle": 0.0,
+        "axis": "x",
+        "origin": [
+          8.0,
+          12.0,
+          8.0
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            16.0,
+            0.0,
+            32.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            16.0,
+            0.0,
+            32.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": null
+    },
+    {
+      "name": "board_xz",
+      "box_uv": true,
+      "rescale": false,
+      "locked": false,
+      "from": [
+        -8,
+        4,
+        0
+      ],
+      "to": [
+        8,
+        20,
+        1
+      ],
+      "uv_offset": [
+        0.0,
+        0.0
+      ],
+      "rotation": {
+        "angle": 0.0,
+        "axis": "x",
+        "origin": [
+          8.0,
+          12.0,
+          8.0
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            16.0,
+            0.0,
+            32.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            16.0,
+            0.0,
+            32.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0.0,
+            16.0,
+            16.0,
+            32.0
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0.0,
+            16.0,
+            16.0,
+            32.0
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            16.0,
+            0.0,
+            32.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            16.0,
+            0.0,
+            32.0,
+            16.0
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": null
+    },
+    {
+      "name": "board_yz",
+      "box_uv": true,
+      "rescale": false,
+      "locked": false,
+      "from": [
+        -8,
+        4,
+        -8
+      ],
+      "to": [
+        8,
+        21,
+        8
+      ],
+      "uv_offset": [
+        0.0,
+        0.0
+      ],
+      "rotation": {
+        "angle": 0.0,
+        "axis": "x",
+        "origin": [
+          8.0,
+          12.0,
+          8.0
+        ]
+      },
+      "faces": {
+        "north": {
+          "uv": [
+            0.0,
+            16.0,
+            16.0,
+            32.0
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            0.0,
+            16.0,
+            16.0,
+            32.0
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            0.0,
+            16.0,
+            16.0,
+            32.0
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            0.0,
+            16.0,
+            16.0,
+            32.0
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": null
+    }
+  ],
+  "textures": [
+    {
+      "path": "",
+      "name": "tumbleweed",
+      "source": "tumbleweed.png",
+      "uuid": "00000000-0000-0000-0000-000000000001",
+      "particle": true,
+      "render_mode": "default",
+      "render_sides": "double",
+      "frame_time": 1.0,
+      "frame_order_type": "loop",
+      "frame_interpolate": false,
+      "visible": true,
+      "internal": true
+    }
+  ],
+  "animations": [],
+  "outliner": [
+    {
+      "name": "root",
+      "origin": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "uuid": "00000000-0000-0000-0000-000000000002",
+      "children": [
+        0,
+        1,
+        2
+      ]
+    }
+  ],
+  "display": {},
+  "overrides": []
+}

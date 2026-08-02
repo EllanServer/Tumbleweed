@@ -1,0 +1,35 @@
+name: Build Tumbleweed Paper Plugin
+
+on:
+  push:
+    branches: [paper-port, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with Gradle
+        run: ./gradlew build --no-daemon
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tumbleweed-paper-plugin
+          path: |
+            build/libs/*.jar
+            src/main/resources/plugin.yml
+            src/main/resources/config.yml

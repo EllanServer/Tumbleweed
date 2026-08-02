@@ -1,0 +1,78 @@
+# =============================================================
+#  Tumbleweed - Paper 插件配置
+#  原版 Tumbleweed mod 的配置项 + 战利品表
+# =============================================================
+
+# 掉落开关
+enableDrops: true
+
+# 生成概率 (0.0 - 1.0)
+spawnChance: 0.5
+
+# 单个玩家周边最大风滚草数量
+maxPerPlayer: 8
+
+# 是否践踏农田 (需开启游戏规则 doMobGriefing)
+damageCrops: true
+
+# 是否只允许玩家击杀掉落
+dropOnlyByPlayer: false
+
+# 生成生物群系 (支持精确群系名 或 #标签引用)
+# 留空则使用默认沙漠/恶地/热带草原系
+biomes: []
+
+# 允许在其上生成的方块 (原版: 干灌木 dead_bush)
+spawnerBlocks:
+  - DEAD_BUSH
+
+# 自动向 MythicMobs / ModelEngine 插件目录导出资源文件
+# (怪物定义 Tumbleweed.yml 与模型 tumbleweed.bbmodel)
+autoExportResources: true
+
+# -------------------------------------------------------------
+# 战利品表 (复刻原版 loot_table,按权重抽取 1 件)
+# weight 顺序: common / uncommon / rare / epic
+# 骷髅击杀时额外加入 musicDiscWeight 权重的音乐唱片
+# -------------------------------------------------------------
+loot:
+  weights:
+    common: 17
+    uncommon: 7
+    rare: 4
+    epic: 1
+    musicDisc: 1
+  common:
+    - BONE
+    - DEAD_BUSH
+    - STRING
+    - FEATHER
+    - WHEAT
+    - STICK
+  uncommon:
+    - SUGAR_CANE
+    - MELON_SEEDS
+    - PUMPKIN_SEEDS
+    - GOLD_NUGGET
+  rare:
+    - IRON_INGOT
+    - GOLD_INGOT
+  epic:
+    - NAME_TAG
+    - SADDLE
+    - EMERALD
+    - DIAMOND
+  # 骷髅击杀时额外掉落 (原版: creeper_drop_music_discs 标签)
+  musicDiscs:
+    - MUSIC_DISC_13
+    - MUSIC_DISC_CAT
+    - MUSIC_DISC_BLOCKS
+    - MUSIC_DISC_CHIRP
+    - MUSIC_DISC_FAR
+    - MUSIC_DISC_MALL
+    - MUSIC_DISC_MELLOHI
+    - MUSIC_DISC_STAL
+    - MUSIC_DISC_STRAD
+    - MUSIC_DISC_WARD
+    - MUSIC_DISC_11
+    - MUSIC_DISC_WAIT

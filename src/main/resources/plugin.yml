@@ -1,0 +1,7 @@
+name: Tumbleweed
+main: net.tumbleweed.paper.TumbleweedPlugin
+version: 1.0.0
+api-version: '26.2'
+depend: [MythicMobs, ModelEngine]
+authors: [Tumbleweed]
+description: 风滚草 - 原版 Tumbleweed mod 的 Paper 插件版,基于 MythicMobs 与 ModelEngine
