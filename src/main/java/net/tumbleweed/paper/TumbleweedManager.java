@@ -16,13 +16,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TumbleweedManager {
 
     private final TumbleweedPlugin plugin;
-    private final ModelController modelController;
     private final Map<UUID, Tumbleweed> tumbleweeds = new ConcurrentHashMap<>();
     private BukkitTask task;
 
-    public TumbleweedManager(TumbleweedPlugin plugin, ModelController modelController) {
+    public TumbleweedManager(TumbleweedPlugin plugin) {
         this.plugin = plugin;
-        this.modelController = modelController;
     }
 
     public void start() {
@@ -35,7 +33,7 @@ public class TumbleweedManager {
             task = null;
         }
         for (Tumbleweed t : tumbleweeds.values()) {
-            modelController.detach(t.entity());
+            ModelController.detach(t.entity());
         }
         tumbleweeds.clear();
     }
@@ -46,19 +44,21 @@ public class TumbleweedManager {
             Map.Entry<UUID, Tumbleweed> entry = it.next();
             Tumbleweed tw = entry.getValue();
             if (tw.entity().isDead() || !tw.entity().isValid()) {
-                modelController.detach(tw.entity());
+                ModelController.detach(tw.entity());
                 it.remove();
                 continue;
             }
             tw.tick(this);
-            modelController.sync(tw);
+            // 旋转 + 压扁同步到 ModelEngine root 骨骼
+            ModelController.sync(tw.entity(), tw.rotation().quat,
+                    tw.renderScaleX(), tw.renderScaleY(), tw.renderScaleZ());
         }
     }
 
     /** 注册新的风滚草 (由 MythicListener 在 MM 实体生成后调用)。 */
     public void register(Tumbleweed tw) {
         if (tumbleweeds.putIfAbsent(tw.entity().getUniqueId(), tw) == null) {
-            modelController.attach(tw);
+            ModelController.attach(tw.entity());
         }
     }
 
@@ -66,7 +66,7 @@ public class TumbleweedManager {
     public void remove(Tumbleweed tw) {
         Tumbleweed removed = tumbleweeds.remove(tw.entity().getUniqueId());
         if (removed != null) {
-            modelController.detach(tw.entity());
+            ModelController.detach(tw.entity());
             if (tw.entity().isValid() && !tw.entity().isDead()) {
                 tw.entity().remove();
             }

@@ -16,10 +16,11 @@ import java.util.logging.Level;
 /**
  * 风滚草 - 原版 Tumbleweed mod 的 Paper 插件重写版。
  *
- * 架构分工:
- *  - MythicMobs  : 定义风滚草怪物实体 (Tumbleweed.yml),处理实体生命周期事件
- *  - ModelEngine : 提供 3D 模型渲染 (tumbleweed.bbmodel),插件驱动骨骼旋转/缩放
- *  - 本插件      : 风力物理、生成器、骷髅射击 AI、农田践踏、战利品、淡出消失
+ * 架构分工 (能用配置表达的绝不用代码):
+ *  - MythicMobs  : 怪物定义 (Tumbleweed.yml)、践踏农田技能、掉落表、
+ *                  骷髅射击 AI (Skeleton.yml)、自然生成器 (TumbleweedSpawner.yml)
+ *  - ModelEngine : 3D 模型渲染 (tumbleweed.bbmodel),插件驱动骨骼旋转/缩放
+ *  - 本插件      : 风力物理、旋转/压扁、碰撞、寿命与淡出消失 (MM 无法配置的部分)
  */
 public class TumbleweedPlugin extends JavaPlugin {
 
@@ -27,9 +28,6 @@ public class TumbleweedPlugin extends JavaPlugin {
 
     private PluginConfig pluginConfig;
     private TumbleweedManager tumbleweedManager;
-    private Spawner spawner;
-    private SkeletonShooter skeletonShooter;
-    private ModelController modelController;
 
     public static TumbleweedPlugin getInstance() {
         return instance;
@@ -45,7 +43,7 @@ public class TumbleweedPlugin extends JavaPlugin {
 
         // 前置插件检查
         if (getServer().getPluginManager().getPlugin("MythicMobs") == null) {
-            getLogger().severe("未找到 MythicMobs!风滚草需要 MythicMobs 5.x 才能运行。");
+            getLogger().severe("未找到 MythicMobs!风滚草需要 MythicMobs 5.13 才能运行。");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -55,42 +53,24 @@ public class TumbleweedPlugin extends JavaPlugin {
             return;
         }
 
-        // 导出附加资源 (MythicMobs 怪物定义 / ModelEngine 蓝图)
+        // 导出附加资源 (MythicMobs 怪物/生成器配置 / ModelEngine 蓝图)
         if (pluginConfig.isAutoExportResources()) {
             exportResources();
         }
 
-        modelController = new ModelController(this);
-        modelController.init();
-
-        tumbleweedManager = new TumbleweedManager(this, modelController);
+        tumbleweedManager = new TumbleweedManager(this);
         tumbleweedManager.start();
 
-        spawner = new Spawner(this, tumbleweedManager);
-        spawner.start();
-
-        skeletonShooter = new SkeletonShooter(this, tumbleweedManager);
-        skeletonShooter.start();
-
-        getServer().getPluginManager().registerEvents(new MythicListener(tumbleweedManager, pluginConfig), this);
+        getServer().getPluginManager().registerEvents(new MythicListener(tumbleweedManager), this);
         getServer().getPluginManager().registerEvents(new InteractionListener(tumbleweedManager), this);
 
-        getLogger().info("风滚草已启用 (MythicMobs 5.9.2 / ModelEngine R4 集成)。");
+        getLogger().info("风滚草已启用 (MythicMobs 5.13 / ModelEngine R4 集成)。");
     }
 
     @Override
     public void onDisable() {
         if (tumbleweedManager != null) {
             tumbleweedManager.stop();
-        }
-        if (spawner != null) {
-            spawner.stop();
-        }
-        if (skeletonShooter != null) {
-            skeletonShooter.stop();
-        }
-        if (modelController != null) {
-            modelController.shutdown();
         }
         instance = null;
     }
@@ -100,6 +80,8 @@ public class TumbleweedPlugin extends JavaPlugin {
      */
     private void exportResources() {
         export("/mythicmobs/Mobs/Tumbleweed.yml", "plugins/MythicMobs/Mobs/Tumbleweed.yml");
+        export("/mythicmobs/Mobs/Skeleton.yml", "plugins/MythicMobs/Mobs/Skeleton.yml");
+        export("/mythicmobs/Spawners/TumbleweedSpawner.yml", "plugins/MythicMobs/Spawners/TumbleweedSpawner.yml");
         export("/modelengine/blueprints/tumbleweed.bbmodel", "plugins/ModelEngine/blueprints/tumbleweed.bbmodel");
         export("/modelengine/textures/tumbleweed.png", "plugins/ModelEngine/textures/tumbleweed.png");
     }

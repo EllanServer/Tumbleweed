@@ -2,82 +2,95 @@ package net.tumbleweed.paper.model;
 
 import com.ticxo.modelengine.api.ModelEngineAPI;
 import com.ticxo.modelengine.api.model.ActiveModel;
-import com.ticxo.modelengine.api.model.bone.Bone;
-import net.tumbleweed.paper.Tumbleweed;
-import net.tumbleweed.paper.TumbleweedPlugin;
+import com.ticxo.modelengine.api.model.ModeledEntity;
+import com.ticxo.modelengine.api.model.bone.ModelBone;
 import org.bukkit.entity.Entity;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.Map;
+import java.util.Optional;
+
 /**
- * ModelEngine 集成:把风滚草的旋转/缩放状态同步到 tumbleweed.bbmodel 的 root 骨骼。
+ * ModelEngine (R4.1.1) 集成:把风滚草的旋转/缩放状态同步到 tumbleweed.bbmodel 的 root 骨骼。
  *
- * ModelEngine 只做渲染 (bbmodel 为 4 个互插的薄板),碰撞与物理完全由插件驱动,
- * 与原版 "实体 + 客户端模型" 的架构一致。
+ * R4 API:
+ *  - ModelEngineAPI.createModeledEntity(Entity)     -> ModeledEntity
+ *  - ModelEngineAPI.createActiveModel(String id)    -> ActiveModel (按 blueprint 实例化)
+ *  - ModeledEntity.addModel(ActiveModel, boolean)   -> Optional&lt;ActiveModel&gt;
+ *  - ActiveModel.setScale(Vector3fc) / getBones()
+ *  - ModelBone.getLocalTransform().setLeftQuaternion(Quaternionf)
+ *
+ * ModelEngine 只做渲染 (bbmodel 为互插薄板),碰撞与物理完全由插件驱动,
+ * 因此 base 实体隐藏,模型根骨骼每 tick 由插件旋转/缩放。
  */
-public class ModelController {
+public final class ModelController {
 
-    private static final String MODEL_ID = "tumbleweed";
-    private static final String ROOT_BONE = "root";
+    public static final String MODEL_ID = "tumbleweed";
+    public static final String ROOT_BONE = "root";
 
-    @SuppressWarnings("unused")
-    private final TumbleweedPlugin plugin;
-
-    public ModelController(TumbleweedPlugin plugin) {
-        this.plugin = plugin;
+    private ModelController() {
     }
 
-    public void init() {
-        // 预留:注册模型加载完毕回调等
-    }
-
-    public void shutdown() {
-        // 模型随实体清理
-    }
-
-    /** 为风滚草附加模型。 */
-    public void attach(Tumbleweed tw) {
-        Entity entity = tw.entity();
+    /** 为实体附加风滚草模型 (幂等:已附加则跳过)。 */
+    public static void attach(Entity entity) {
+        if (entity == null || !entity.isValid() || ModelEngineAPI.getModeledEntity(entity) != null) {
+            return;
+        }
         try {
-            ActiveModel model = ModelEngineAPI.createModel(entity, MODEL_ID);
-            tw.setModel(model);
+            ModeledEntity modeled = ModelEngineAPI.createModeledEntity(entity);
+            ActiveModel model = ModelEngineAPI.createActiveModel(MODEL_ID);
+            if (model == null) {
+                return;
+            }
+            modeled.addModel(model, true);
+            modeled.setBaseEntityVisible(false);
         } catch (Exception e) {
-            // 模型缺失时降级:实体仍可正常物理滚动,只是没有 3D 外观
-            TumbleweedPlugin.getInstance().getLogger().warning(
-                    "无法为风滚草附加 ModelEngine 模型 " + MODEL_ID + ": " + e.getMessage());
+            // 模型加载失败不应中断风滚草物理
         }
     }
 
     /** 每 tick 同步旋转与缩放。 */
-    public void sync(Tumbleweed tw) {
-        ActiveModel model = tw.getModel();
-        if (model == null) {
+    public static void sync(Entity entity, Quaternionf rotation, float scaleX, float scaleY, float scaleZ) {
+        if (entity == null || !entity.isValid()) {
             return;
         }
-        Bone root = model.getBone(ROOT_BONE);
-        if (root == null) {
+        ModeledEntity modeled = ModelEngineAPI.getModeledEntity(entity);
+        if (modeled == null) {
             return;
         }
-
-        // 旋转:复刻原版 quat * rotOffset (随机初始朝向)
-        Quaternionf q = new Quaternionf(tw.rotation().quat);
-        q.rotateX((float) Math.toRadians(tw.rotOffsetX()));
-        q.rotateY((float) Math.toRadians(tw.rotOffsetY()));
-        q.rotateZ((float) Math.toRadians(tw.rotOffsetZ()));
-        root.setRotation(q);
-
-        // 缩放:整体 size + 落地压扁 (stretch 作用于 Y)
-        float size = tw.modelScale();
-        float stretch = tw.rotation().stretch;
-        root.setScale(new Vector3f(size * (2f - stretch), size * stretch, size * (2f - stretch)));
+        Optional<ActiveModel> opt = modeled.getModel(MODEL_ID);
+        if (opt.isEmpty()) {
+            return;
+        }
+        ActiveModel model = opt.get();
+        try {
+            model.setScale(new Vector3f(scaleX, scaleY, scaleZ));
+            Map<String, ModelBone> bones = model.getBones();
+            if (bones != null) {
+                ModelBone root = bones.get(ROOT_BONE);
+                if (root != null && rotation != null) {
+                    root.getLocalTransform().setLeftQuaternion(rotation);
+                }
+            }
+        } catch (Exception e) {
+            // 渲染同步失败不影响物理
+        }
     }
 
-    /** 卸载模型。 */
-    public void detach(Entity entity) {
+    /** 移除实体上的模型。 */
+    public static void detach(Entity entity) {
+        if (entity == null) {
+            return;
+        }
         try {
-            ModelEngineAPI.getModelManager().removeModel(entity);
-        } catch (Exception ignored) {
-            // 实体可能已卸载
+            ModeledEntity modeled = ModelEngineAPI.getModeledEntity(entity);
+            if (modeled != null) {
+                modeled.removeModel(MODEL_ID);
+                modeled.destroy();
+            }
+        } catch (Exception e) {
+            // 忽略清理异常
         }
     }
 }

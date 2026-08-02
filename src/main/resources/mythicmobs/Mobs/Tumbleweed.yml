@@ -1,62 +1,61 @@
-# =============================================================
-#  Tumbleweed - MythicMobs 怪物定义
-#  由 TumbleweedPaper 插件驱动物理与行为,本文件只负责:
-#   - 怪物实体基础属性 (无 AI、静默、防掉落)
-#   - 血量与伤害
-#   - 占位技能钩子 (插件通过 MythicMob 事件接管)
-# =============================================================
+# ============================================================
+#  风滚草 - MythicMobs 怪物定义 (配置化,插件只负责物理)
+# ============================================================
+#  物理(风/旋转/碰撞)与消失(寿命+淡出+脱管)由插件接管;
+#  其余全部由本配置控制:血量、伤害免疫、践踏农田、掉落。
+#
+#  Despawn {F: 0, D: 0} = 禁用 MM 消失计时,避免与插件生命周期冲突。
+#  ApplyInvisibility 隐藏原猪实体,3D 模型由 ModelEngine 渲染。
+# ============================================================
 Tumbleweed:
   Type: PIG
-  Display: '风滚草'
+  Display: "<#d3a95c>风滚草"
   Health: 1
   Damage: 0
+  Armor: 0
+  NoAI: true
+  Silent: true
+  PreventSunburn: true
+  PreventOtherDrops: true
+  PreventItemPickup: true
+  PreventMobKillDrops: true
   Options:
-    # 无 AI:位置/速度完全由插件物理驱动
-    NoAI: true
-    # 静默,不发出猪叫
-    Silent: true
-    # 不生成装备
+    Despawn: {F: 0, D: 0}
     PreventRandomEquipment: true
-    # 不使用 MythicMobs 默认掉落 (战利品由插件按原版战利品表处理)
-    PreventOtherDrops: true
-    PreventMobKillDrops: true
-    # 不会因太阳着火
-    PreventSunburn: true
-    # 不参与 MythicMobs 反刷怪计时/天然生成
-    Despawn: PERSISTENT
-    # 防改名/标签混淆
-    PreventRenaming: false
-    # 推搡免疫:物理由插件接管,避免服务器 push 干扰
-    PreventPush: false
-    # 不被击退 (风滚草滚走而不是被击退)
-    PreventKnockback: false
-    # 忽略移动限制
-    PreventMobAI: true
-    # 风滚草不能被驯服/骑乘
-    PreventLeashing: true
-    # 不显示血条
-    ShowHealth: false
-    # 立即刷新 (服务器重启后重生)
-    DespawnTicks: 0
-    # 死亡不掉落经验 (经验由插件战利品替代)
-    PreventExperienceDrops: true
-    # 名称标签隐藏
-    NoDamageTicks: 0
+    PreventInfection: true
+    PreventRandomTarget: true
+    MovementSpeed: 0
+    ApplyInvisibility: true
+    NoDamageTicks: 1
   DamageModifiers:
-    - VILLAGER 0
-    - IGNITED_TNT 0
-    - CACTUS 0
-    - FIRE 0
-    - LAVA 0
-    - FALL 0
-    - SUFFOCATION 0
-    - DROWNING 0
-    - STARVATION 0
-    - VOID 0
-    - LIGHTNING 0
-    - DRAGON_BREATH 0
-    - WITHER 0
-    - POISON 0
-  # 技能钩子:所有物理/行为均由 TumbleweedPaper 插件在
-  # MythicMobSpawnEvent / MythicMobDeathEvent 中接管
-  Skills: []
+  - INVULNERABLE_FALL: 1
+  - INVULNERABLE_FIRE: 1
+  - INVULNERABLE_LAVA: 1
+  - INVULNERABLE_DROWNING: 1
+  - INVULNERABLE_EXPLOSION: 1
+  # 原版特性:命名牌可命名风滚草(插件监听器会额外标记为持久)
+  Skills:
+  # --- 践踏农田 (原版 FarmlandMixin:落地时 70% 概率毁田) ---
+  # onblock 条件检查脚下方块,仅当踩在农田上才转化
+  - skill:TumbleweedTrample ~onTimer:10
+
+# --- 践踏农田技能 ---
+TumbleweedTrample:
+  Conditions:
+  - onground
+  - onblock{m=FARMLAND}
+  Skills:
+  - setblock{m=DIRT;direction=down} @TriggerLocation
+  - sound{s=BLOCK_GRAVEL_BREAK;volume=0.8;pitch=0.9} @self
+
+# --- 掉落表 (原版战利品概率) ---
+# 骷髅击杀额外计入音乐唱片权重 (原版 creeper_drop_music_discs 标签,
+# 用 !playerkills 条件排除玩家击杀,仅骷髅/其他非玩家击杀时掉落)
+  Drops:
+  - item{name=WHEAT_SEEDS;amount=1-3;chance=0.2}
+  - item{name=STICK;amount=1-2;chance=0.25}
+  - item{name=DEAD_BUSH;amount=1;chance=0.1}
+  - item{name=DIRT;amount=1;chance=0.1}
+  - item{name=MUSIC_DISC_13;amount=1;chance=0.05}
+    Conditions:
+    - !playerkills

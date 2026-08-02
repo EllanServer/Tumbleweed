@@ -1,8 +1,6 @@
 package net.tumbleweed.paper;
 
-import com.ticxo.modelengine.api.model.ActiveModel;
 import net.tumbleweed.paper.model.RotationState;
-import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -12,11 +10,10 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
-import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 
-import java.util.List;
+import java.util.Collection;
 import java.util.Random;
 
 /**
@@ -65,9 +62,6 @@ public class Tumbleweed {
     private final float rotOffsetY;
     private final float rotOffsetZ;
 
-    /** ModelEngine 活动模型引用 (由 ModelController 附加)。 */
-    private ActiveModel model;
-
     private final Random random = new Random();
 
     public Tumbleweed(Entity entity, int size) {
@@ -103,9 +97,10 @@ public class Tumbleweed {
         prevMotion.copy(motion);
         moveEntity();
 
-        // 风力
-        double windX = WIND * windMod;
-        double windZ = WIND * windMod;
+        // 风力 (原版 WIND = -1/16;风滚草按 windMultiplier 倍率,默认 1.0)
+        double windMultiplier = TumbleweedPlugin.getInstance().pluginConfig().windMultiplier();
+        double windX = WIND * windMod * windMultiplier;
+        double windZ = WIND * windMod * windMultiplier;
         if (isInWater()) {
             motion.setX(motion.getX() * 0.95);
             motion.setZ(motion.getZ() * 0.95);
@@ -132,7 +127,7 @@ public class Tumbleweed {
         }
 
         // 摩擦
-        motion.multiply(FRICTION, FRICTION, FRICTION);
+        motion.multiply(new org.bukkit.util.Vector(FRICTION, FRICTION, FRICTION));
 
         collideWithNearbyEntities(manager);
 
@@ -164,7 +159,7 @@ public class Tumbleweed {
             }
         }
 
-        trampleFarmland();
+        // 践踏农田已由 MythicMobs 配置实现 (Tumbleweed.yml 的 TumbleweedTrample 技能)
     }
 
     /** 逐轴 AABB 方块碰撞移动 (模拟原版 move(MoverType.SELF, ...))。 */
@@ -271,14 +266,10 @@ public class Tumbleweed {
     private void collideWithNearbyEntities(TumbleweedManager manager) {
         double width = mcSize();
         Location loc = entity.getLocation();
-        BoundingBox bb = new BoundingBox(
-                loc.getX() - width / 2 - 0.2, loc.getY(),
-                loc.getZ() - width / 2 - 0.2,
-                loc.getX() + width / 2 + 0.2, loc.getY() + width + 1,
-                loc.getZ() + width / 2 + 0.2);
 
-        List<Entity> nearby = entity.getWorld().getNearbyEntities(bb,
-                e -> e != entity && e.isPushable() && !manager.isTumbleweed(e));
+        // 26.2: getNearbyEntities(Location, dx, dy, dz, Predicate) 返回 Collection
+        Collection<Entity> nearby = entity.getWorld().getNearbyEntities(loc, width / 2 + 0.2, width + 1,
+                width / 2 + 0.2, e -> e != entity && !manager.isTumbleweed(e));
 
         for (Entity e : nearby) {
             // 空矿车:骑乘 (原版特性)
@@ -299,21 +290,6 @@ public class Tumbleweed {
             if (e instanceof LivingEntity living) {
                 Vector push = living.getVelocity().add(new Vector(pushX, 0.15, pushZ));
                 living.setVelocity(push);
-            }
-        }
-    }
-
-    /** 落地践踏农田 (原版 FarmlandMixin:70% 概率 + 游戏规则 doMobGriefing)。 */
-    private void trampleFarmland() {
-        if (!onGround || !TumbleweedPlugin.getInstance().pluginConfig().isDamageCrops()) {
-            return;
-        }
-        Location loc = entity.getLocation();
-        if (entity.getWorld().getGameRuleValue(GameRule.DO_MOB_GRIEFING)
-                && random.nextFloat() < 0.7F) {
-            Block block = entity.getWorld().getBlockAt(loc.getBlockX(), loc.getBlockY() - 1, loc.getBlockZ());
-            if (block.getType() == Material.FARMLAND) {
-                block.setType(Material.DIRT);
             }
         }
     }
@@ -369,12 +345,17 @@ public class Tumbleweed {
         return persistent;
     }
 
-    public ActiveModel getModel() {
-        return model;
+    /** 渲染压扁:scaleY = stretch,scaleXZ = 2 - stretch (原版 render 逻辑)。 */
+    public float renderScaleX() {
+        return modelScale() * (2f - rotation.stretch);
     }
 
-    public void setModel(ActiveModel model) {
-        this.model = model;
+    public float renderScaleY() {
+        return modelScale() * rotation.stretch;
+    }
+
+    public float renderScaleZ() {
+        return modelScale() * (2f - rotation.stretch);
     }
 
     public float rotOffsetX() {
