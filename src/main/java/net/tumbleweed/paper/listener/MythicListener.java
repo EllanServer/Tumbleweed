@@ -34,14 +34,17 @@ public class MythicListener implements Listener {
             return;
         }
 
-        // 默认尺寸 2 (0.75 + 2/8 = 1.0 格)
-        Tumbleweed tw = new Tumbleweed(entity, 2);
+        // 随机尺寸 1~4 (原版 entityInit 随机;mcSize = 0.75 + size/8)
+        Tumbleweed tw = new Tumbleweed(entity, 1 + entity.getWorld().getRandom().nextInt(4));
         tw.setPersistent(false);
 
         // NoAI,物理完全由插件接管
         if (entity instanceof org.bukkit.entity.LivingEntity living) {
             living.setAI(false);
         }
+
+        // 原版 getCollisionBox 返回 null:风滚草不阻挡实体 (可被穿过)
+        entity.setCollidable(false);
 
         manager.register(tw);
     }

@@ -24,13 +24,40 @@ import java.util.logging.Level;
  */
 public class TumbleweedPlugin extends JavaPlugin {
 
+    /** 原版全局风力 (Tumbleweed.windX/windZ):每 2 分钟各 50% 概率翻转符号。 */
+    private static final float DEFAULT_WIND_X = 0.08f;
+    private static final float DEFAULT_WIND_Z = -0.08f;
+
     private static TumbleweedPlugin instance;
+    private static float windX = DEFAULT_WIND_X;
+    private static float windZ = DEFAULT_WIND_Z;
+    private static final java.util.Random windRandom = new java.util.Random();
 
     private PluginConfig pluginConfig;
     private TumbleweedManager tumbleweedManager;
 
     public static TumbleweedPlugin getInstance() {
         return instance;
+    }
+
+    /** 当前全局风力 X 分量 (原版 Tumbleweed.windX)。 */
+    public static float windX() {
+        return windX;
+    }
+
+    /** 当前全局风力 Z 分量 (原版 Tumbleweed.windZ)。 */
+    public static float windZ() {
+        return windZ;
+    }
+
+    /** 原版:每 2 分钟对 X/Z 各做一次 50% 概率的符号翻转。 */
+    public void rollWind() {
+        if (windRandom.nextBoolean()) {
+            windX = -windX;
+        }
+        if (windRandom.nextBoolean()) {
+            windZ = -windZ;
+        }
     }
 
     @Override

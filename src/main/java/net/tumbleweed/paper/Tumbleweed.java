@@ -20,27 +20,34 @@ import java.util.Random;
 /**
  * 风滚草的物理与行为,忠实移植原版 EntityTumbleweed 的 tick 逻辑。
  *
- * 原版关键数值:
- *  - 风力: X/Z = -1/16 * windMod,windMod = 1.05 - 0.1 * rand(以实体 id 为种子)
- *  - 重力 0.012 / tick,摩擦 0.98 / tick
- *  - 落地反弹: windSpeed >= 0.05 时 y = max(-prevY*0.7, 0.24 - |size|*0.02),否则 y = -prevY*0.7
- *  - 水中:速度 xz * 0.95,y + 0.02,无风力
- *  - 卡墙或水中时年龄加速 8 倍;寿命 2 分钟 + 0~200 tick;之后 80 tick 淡出消失
- *  - 玩家离开 160 格后消失
- *  - 尺寸: mcSize = 0.75 + size * 1/8 (size 1-4)
+ * 原版关键数值 (master, 1.8.9):
+ *  - 风力: windX = 0.08, windZ = -0.08 (每 2 分钟各 50% 概率翻转符号),
+ *    windModX/Z 独立随机, 1.0 + (0.2 - 0.4 * rand) ∈ [0.8, 1.2]
+ *  - 重力 0.012 / tick,摩擦 0.98 / tick,速度低于 0.005 清零
+ *  - 落地反弹: |windX|>=0.05 或 |windZ|>=0.05 时 y = max(-prevY*0.7, 0.24 - size*0.02),
+ *    否则 y = -prevY*0.7
+ *  - 水平撞墙反弹: motionX/Z = -移动前速度 * 0.4
+ *  - 水中:速度 xz * 0.95, y + 0.01,无风力
+ *  - 卡墙或水中时年龄加速 8 倍;寿命 2 分钟;之后 80 tick 淡出消失
+ *  - 玩家离开 110 格后消失 (原版 d3 > 110*110,三维距离)
+ *  - 旋转:每 tick 绕 X 转 -2π*motionZ/(5*size)、绕 Z 转 2π*motionX/(5*size) 弧度
+ *  - 尺寸: mcSize = 0.75 + size * 1/8 (size 1-4;原版随机为 1-(3-rand(5)) 疑似笔误,取 1-4)
+ *  - 落地压扁为 mod 新版本特性 (master 1.8.9 无),按新版本行为保留
  */
 public class Tumbleweed {
 
     public static final int FADE_TIME = 4 * 20;       // 80 ticks 淡出
-    private static final int DESPAWN_RANGE = 160;     // 脱离玩家范围
+    private static final int DESPAWN_RANGE = 110;     // 脱离玩家范围 (原版 110)
     private static final double BASE_SIZE = 3 / 4d;   // 0.75
-    private static final double WIND = -1 / 16d;      // 基础风速
     private static final double GRAVITY = 0.012;
     private static final double FRICTION = 0.98;
+    private static final float MOTION_CUTOFF = 0.005f; // 速度阈值 (原版)
+    private static final double ROT_DIVISOR = 5.0;     // 原版旋转: 2π * v / (5 * size)
 
     private final Entity entity;          // MythicMobs 载体实体 (Pig, NoAI)
     private final int size;
-    private final double windMod;
+    private final double windModX;        // 原版: 独立随机 0.8 ~ 1.2
+    private final double windModZ;
     private final int lifetime;
 
     private int age;
@@ -57,8 +64,6 @@ public class Tumbleweed {
 
     // 旋转状态 (原版客户端逻辑,在服务端计算后交给 ModelEngine)
     private final RotationState rotation;
-    private float angularSpeedX;
-    private float angularSpeedZ;
     private final float rotOffsetX;
     private final float rotOffsetY;
     private final float rotOffsetZ;
@@ -72,8 +77,9 @@ public class Tumbleweed {
 
         // 原版以实体 id 作为随机种子:windMod 与 lifetime 可复现
         Random seeded = new Random(entity.getEntityId());
-        this.windMod = 1.05 - 0.1 * seeded.nextDouble();
-        this.lifetime = 2 * 60 * 20 + seeded.nextInt(200);
+        this.windModX = 1.0 + 0.2 - 0.4 * seeded.nextDouble();
+        this.windModZ = 1.0 + 0.2 - 0.4 * seeded.nextDouble();
+        this.lifetime = 2 * 60 * 20;
 
         this.rotOffsetX = 360f * random.nextFloat();
         this.rotOffsetY = 360f * random.nextFloat();
@@ -98,14 +104,15 @@ public class Tumbleweed {
         prevMotion.copy(motion);
         moveEntity();
 
-        // 风力 (原版 WIND = -1/16;风滚草按 windMultiplier 倍率,默认 1.0)
+        // 风力 (原版: windX=0.08, windZ=-0.08,每 2 分钟随机翻转;windModX/Z 独立)
+        // windMultiplier 为插件配置倍率 (原版无,默认 1.0)
         double windMultiplier = TumbleweedPlugin.getInstance().pluginConfig().windMultiplier();
-        double windX = WIND * windMod * windMultiplier;
-        double windZ = WIND * windMod * windMultiplier;
+        double windX = TumbleweedPlugin.windX() * windModX * windMultiplier;
+        double windZ = TumbleweedPlugin.windZ() * windModZ * windMultiplier;
         if (isInWater()) {
             motion.setX(motion.getX() * 0.95);
             motion.setZ(motion.getZ() * 0.95);
-            motion.setY(motion.getY() + 0.02);
+            motion.setY(motion.getY() + 0.01);
             windX = 0;
             windZ = 0;
         } else if (windX != 0 || windZ != 0) {
@@ -113,7 +120,7 @@ public class Tumbleweed {
             motion.setZ(windZ);
         }
 
-        // 旋转 (原版 tickClient)
+        // 旋转 (原版 tickClient,在 moveEntity 之后、反弹之前,使用移动后的 motion)
         tickRotation();
 
         // 落地反弹
@@ -127,8 +134,25 @@ public class Tumbleweed {
             motion.setY(bounce);
         }
 
+        // 水平撞墙反弹 (原版 isCollidedHorizontally: motion = -移动前速度 * 0.4)
+        if (horizontalCollision) {
+            motion.setX(-prevMotion.getX() * 0.4);
+            motion.setZ(-prevMotion.getZ() * 0.4);
+        }
+
         // 摩擦
         motion.multiply(new org.bukkit.util.Vector(FRICTION, FRICTION, FRICTION));
+
+        // 速度阈值清零 (原版 |motion| < 0.005)
+        if (Math.abs(motion.getX()) < MOTION_CUTOFF) {
+            motion.setX(0);
+        }
+        if (Math.abs(motion.getY()) < MOTION_CUTOFF) {
+            motion.setY(0);
+        }
+        if (Math.abs(motion.getZ()) < MOTION_CUTOFF) {
+            motion.setZ(0);
+        }
 
         collideWithNearbyEntities(manager);
 
@@ -146,7 +170,7 @@ public class Tumbleweed {
             }
         }
 
-        // 无玩家时消失
+        // 无玩家时消失 (原版: 最近玩家三维距离 > 110)
         if (!persistent) {
             Player nearest = entity.getWorld().getPlayers().stream()
                     .filter(p -> p.isOnline() && p.getWorld().equals(entity.getWorld()))
@@ -234,33 +258,21 @@ public class Tumbleweed {
         return false;
     }
 
-    /** 原版 tickClient:旋转与落地压扁。 */
+    /** 原版 tickClient 旋转:落地压扁为新版本特性;旋转按 master 1.8.9 原样复刻。 */
     private void tickRotation() {
         if (!prevVerticalCollision && onGround) {
             rotation.stretch *= 0.70f;
         }
         prevVerticalCollision = onGround;
 
-        float motionAngleX = (float) (prevMotion.getZ() / (mcSize() * 0.5));
-        float motionAngleZ = (float) (-prevMotion.getX() / (mcSize() * 0.5));
+        // 原版: rotX(度) = 360 * (-motionZ / (5*size)) → ωX(弧度) = -2π * motionZ / (5*size)
+        //       rotZ(度) = 360 * ( motionX / (5*size)) → ωZ(弧度) =  2π * motionX / (5*size)
+        // 每 tick 直接右乘 (quat = quat * Qx * Qz),无角速度累积/阻力
+        float motionAngleX = (float) (-2 * Math.PI * motion.getZ() / (ROT_DIVISOR * size));
+        float motionAngleZ = (float) (2 * Math.PI * motion.getX() / (ROT_DIVISOR * size));
 
-        if (onGround) {
-            angularSpeedX = motionAngleX;
-            angularSpeedZ = motionAngleZ;
-        }
-        if (isInWater()) {
-            angularSpeedX += motionAngleX * 0.2f;
-            angularSpeedZ += motionAngleZ * 0.2f;
-        }
-
-        float resistance = isInWater() ? 0.9f : 0.96f;
-        angularSpeedX *= resistance;
-        angularSpeedZ *= resistance;
-
-        Quaternionf temp = new Quaternionf();
-        temp.rotateXYZ(angularSpeedX, 0, angularSpeedZ);
-        temp.mul(rotation.quat);
-        rotation.quat = temp;
+        // JOML rotateXYZ(ax, 0, az) 生成 Qx*Qz;quat.mul(...) 右乘 → quat * Qx * Qz,与原版一致
+        rotation.quat.mul(new Quaternionf().rotateXYZ(motionAngleX, 0, motionAngleZ));
     }
 
     /** 原版 collideWithNearbyEntities:推开附近实体;空矿车可骑乘。 */

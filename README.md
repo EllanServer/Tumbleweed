@@ -50,7 +50,7 @@ auto-export-resources: true # 首次启动自动导出 MM/ME 资源
   通过 `~onTimer:10` 每 10 tick 检查一次;改 `chance` 可调节概率。
 - 血量 1、无 AI、免疫摔落/火焰/溺水/爆炸;原猪实体隐形,渲染由渲染后端承担。
 - `Despawn: {F: 0, D: 0}` 已禁用 MM 消失计时,寿命与脱管消失由插件接管
-  (2 分钟 + 0~200 tick 随机,80 tick 淡出,玩家离开 160 格消失)。
+  (2 分钟,80 tick 淡出,玩家离开 110 格消失,均与原版一致)。
 
 ### `plugins/MythicMobs/Mobs/Skeleton.yml` — 骷髅射击 AI
 
@@ -69,8 +69,8 @@ auto-export-resources: true # 首次启动自动导出 MM/ME 资源
 
 | 原版行为 | 实现方式 |
 | --- | --- |
-| 风力 -1/16、重力 0.012、摩擦 0.98、落地反弹 | 插件物理 (Tumbleweed.java) |
-| 旋转滚动 + 落地压扁 | 插件计算四元数/压扁 → ModelEngine root 骨骼 |
+| 风力 0.08/-0.08(每 2 分钟随机翻转)、重力 0.012、摩擦 0.98、落地反弹 | 插件物理 (Tumbleweed.java) |
+| 旋转滚动(原版系数 2π·v/5size)+ 落地压扁(新版本特性) | 插件计算四元数/压扁 → ModelEngine root 骨骼 |
 | 水中减速、卡墙老化加速、寿命淡出、脱管消失 | 插件 |
 | 践踏农田 (70% + doMobGriefing) | MM 技能 `TumbleweedTrample` |
 | 骷髅射击风滚草 | MM 技能 + AI 条件 (Skeleton.yml) |

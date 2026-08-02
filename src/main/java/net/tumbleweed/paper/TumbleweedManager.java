@@ -18,6 +18,7 @@ public class TumbleweedManager {
     private final TumbleweedPlugin plugin;
     private final Map<UUID, Tumbleweed> tumbleweeds = new ConcurrentHashMap<>();
     private BukkitTask task;
+    private int windTicks;   // 原版:每 2 分钟翻转一次风向
 
     public TumbleweedManager(TumbleweedPlugin plugin) {
         this.plugin = plugin;
@@ -39,6 +40,12 @@ public class TumbleweedManager {
     }
 
     private void tick() {
+        // 原版 CommonEventHandler:每 2*60*20 tick 翻转一次风向
+        if (++windTicks >= 2 * 60 * 20) {
+            windTicks = 0;
+            plugin.rollWind();
+        }
+
         Iterator<Map.Entry<UUID, Tumbleweed>> it = tumbleweeds.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Tumbleweed> entry = it.next();
@@ -49,9 +56,11 @@ public class TumbleweedManager {
                 continue;
             }
             tw.tick(this);
-            // 旋转 + 压扁同步到 ModelEngine root 骨骼
+            // 旋转 + 压扁同步到 ModelEngine root 骨骼;淡出 alpha 乘入 scale 模拟渐隐
+            // (ModelEngine 无透明度 API,原版 80 tick 透明度渐变以尺寸渐变近似)
+            float fade = tw.alpha();
             ModelController.sync(tw.entity(), tw.rotation().quat,
-                    tw.renderScaleX(), tw.renderScaleY(), tw.renderScaleZ());
+                    tw.renderScaleX() * fade, tw.renderScaleY() * fade, tw.renderScaleZ() * fade);
         }
     }
 
