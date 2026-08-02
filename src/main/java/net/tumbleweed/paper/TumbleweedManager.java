@@ -1,6 +1,7 @@
 package net.tumbleweed.paper;
 
-import net.tumbleweed.paper.model.ModelController;
+import net.momirealms.craftengine.bukkit.entity.furniture.BukkitFurniture;
+import net.tumbleweed.paper.model.CEFurnitureController;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
@@ -14,13 +15,17 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 管理所有活跃风滚草:注册表 + 每 tick 物理调度 + 模型同步。
+ * 管理所有活跃风滚草:注册表 + 每 tick 物理调度 + CE 家具同步。
+ *
+ * 渲染与交互由 craft-engine 家具托管 (ItemDisplay 元素 + interaction hitbox):
+ *  - 显示:CE 负责家具的追踪/剔除/网络同步
+ *  - 交互:玩家打击/右击家具由 CE 派发 FurnitureHitEvent / FurnitureInteractEvent
  *
  * 性能设计 (对应原版 1.14 ServerEntityMixin 的同步精简思路):
  *  - 最近玩家距离每 10 tick 全量刷新一次,供脱管检查与远处降频判断复用,
  *    避免每个风滚草每 tick 遍历全部玩家 (原版为每实体每 tick 查询)。
  *  - 距最近玩家超过 performance.distant-physics-distance 格 (默认 96) 的风滚草
- *    处于所有玩家视距外,物理与渲染同步降频为每 distant-physics-interval tick 一次,
+ *    处于所有玩家视距外,物理与家具同步降频为每 distant-physics-interval tick 一次,
  *    寿命按真实时间补偿,玩家靠近后自动恢复全速。
  *  - 脱管检查 (原版 110 格) 仍每 tick 执行,基于缓存的玩家距离 (最多延迟 10 tick 消失)。
  */
@@ -32,6 +37,7 @@ public class TumbleweedManager {
     private final TumbleweedPlugin plugin;
     private final Map<UUID, Tumbleweed> tumbleweeds = new ConcurrentHashMap<>();
     private final Map<UUID, Double> playerDistSq = new HashMap<>(); // 每风滚草 -> 最近玩家距离平方
+    private final Map<BukkitFurniture, Tumbleweed> furnitureIndex = new ConcurrentHashMap<>(); // CE 事件反查
     private BukkitTask task;
     private int windTicks;        // 原版:每 2 分钟翻转一次风向
     private int playerCheckTicks; // 玩家距离缓存刷新计数
@@ -50,10 +56,11 @@ public class TumbleweedManager {
             task = null;
         }
         for (Tumbleweed t : tumbleweeds.values()) {
-            ModelController.detach(t.entity());
+            detachFurniture(t);
         }
         tumbleweeds.clear();
         playerDistSq.clear();
+        furnitureIndex.clear();
     }
 
     private void tick() {
@@ -77,7 +84,7 @@ public class TumbleweedManager {
             Map.Entry<UUID, Tumbleweed> entry = it.next();
             Tumbleweed tw = entry.getValue();
             if (tw.entity().isDead() || !tw.entity().isValid()) {
-                ModelController.detach(tw.entity());
+                detachFurniture(tw);
                 it.remove();
                 playerDistSq.remove(entry.getKey());
                 continue;
@@ -89,12 +96,12 @@ public class TumbleweedManager {
             if (!tw.isPersistent() && dSq != null && dSq > DESPAWN_RANGE_SQ) {
                 playerDistSq.remove(entry.getKey());
                 it.remove();
-                ModelController.detach(tw.entity());
+                detachFurniture(tw);
                 tw.entity().remove();
                 continue;
             }
 
-            // 远处降频:玩家视距外且未淡出 → 每 N tick 才跑物理与渲染同步
+            // 远处降频:玩家视距外且未淡出 → 每 N tick 才跑物理与家具同步
             if (dSq != null && dSq > (double) distantDistance * distantDistance
                     && !tw.isFading() && !tw.shouldRunPhysics(distantInterval)) {
                 // 寿命按真实时间补偿,远处风滚草不会因降频而活得变久
@@ -102,12 +109,14 @@ public class TumbleweedManager {
                 continue;
             }
 
+            // 家具未创建 (如首次安装未 /ce reload) 时自动重试
+            if (tw.furniture() == null && CEFurnitureController.attach(tw)) {
+                furnitureIndex.put(tw.furniture(), tw);
+            }
+
             tw.tick(this);
-            // 旋转 + 压扁同步到 ModelEngine root 骨骼;淡出 alpha 乘入 scale 模拟渐隐
-            // (ModelEngine 无透明度 API,原版 80 tick 透明度渐变以尺寸渐变近似)
-            float fade = tw.alpha();
-            ModelController.sync(tw.entity(), tw.rotation().quat,
-                    tw.renderScaleX() * fade, tw.renderScaleY() * fade, tw.renderScaleZ() * fade);
+            // 家具跟随物理位置 + 变换 (旋转/压扁/淡出);CE 托管追踪与剔除
+            CEFurnitureController.sync(tw, tw.isMoving());
         }
     }
 
@@ -144,8 +153,11 @@ public class TumbleweedManager {
     /** 注册新的风滚草 (由 MythicListener 在 MM 实体生成后调用)。 */
     public void register(Tumbleweed tw) {
         if (tumbleweeds.putIfAbsent(tw.entity().getUniqueId(), tw) == null) {
-            ModelController.attach(tw.entity());
             playerDistSq.put(tw.entity().getUniqueId(), Double.MAX_VALUE);
+            // 创建 CE 家具 (显示 + 交互);失败时下一 tick 自动重试
+            if (CEFurnitureController.attach(tw)) {
+                furnitureIndex.put(tw.furniture(), tw);
+            }
         }
     }
 
@@ -154,16 +166,29 @@ public class TumbleweedManager {
         Tumbleweed removed = tumbleweeds.remove(tw.entity().getUniqueId());
         if (removed != null) {
             playerDistSq.remove(tw.entity().getUniqueId());
-            ModelController.detach(tw.entity());
+            detachFurniture(removed);
             if (tw.entity().isValid() && !tw.entity().isDead()) {
                 tw.entity().remove();
             }
         }
     }
 
+    private void detachFurniture(Tumbleweed tw) {
+        BukkitFurniture f = tw.furniture();
+        if (f != null) {
+            furnitureIndex.remove(f);
+        }
+        CEFurnitureController.detach(tw);
+    }
+
     /** 按实体查找。 */
     public Tumbleweed get(Entity entity) {
         return tumbleweeds.get(entity.getUniqueId());
+    }
+
+    /** 按 CE 家具查找 (FurnitureHitEvent/FurnitureInteractEvent 反查)。 */
+    public Tumbleweed getByFurniture(BukkitFurniture furniture) {
+        return furnitureIndex.get(furniture);
     }
 
     /** 判断实体是否为风滚草 (用于避免互推)。 */

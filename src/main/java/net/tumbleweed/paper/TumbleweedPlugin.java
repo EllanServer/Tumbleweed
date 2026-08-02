@@ -3,6 +3,7 @@ package net.tumbleweed.paper;
 import net.tumbleweed.paper.config.PluginConfig;
 import net.tumbleweed.paper.listener.InteractionListener;
 import net.tumbleweed.paper.listener.MythicListener;
+import net.tumbleweed.paper.model.CEFurnitureController;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -17,10 +18,11 @@ import java.util.logging.Level;
  * 风滚草 - 原版 Tumbleweed mod 的 Paper 插件重写版。
  *
  * 架构分工 (能用配置表达的绝不用代码):
- *  - MythicMobs  : 怪物定义 (Tumbleweed.yml)、践踏农田技能、掉落表、
- *                  骷髅射击 AI (Skeleton.yml)、自然生成器 (TumbleweedSpawner.yml)
- *  - ModelEngine : 3D 模型渲染 (tumbleweed.bbmodel),插件驱动骨骼旋转/缩放
- *  - 本插件      : 风力物理、旋转/压扁、碰撞、寿命与淡出消失 (MM 无法配置的部分)
+ *  - MythicMobs    : 怪物定义 (Tumbleweed.yml)、践踏农田技能、掉落表、
+ *                    骷髅射击 AI (Skeleton.yml)、自然生成器 (TumbleweedSpawner.yml)
+ *  - CraftEngine   : 家具托管渲染 (tumbleweed 家具,ItemDisplay 元素 + interaction hitbox)
+ *                    与玩家交互事件 (FurnitureHitEvent / FurnitureInteractEvent)
+ *  - 本插件        : 风力物理、旋转/压扁、碰撞、寿命与淡出消失 (MM 无法配置的部分)
  */
 public class TumbleweedPlugin extends JavaPlugin {
 
@@ -74,13 +76,15 @@ public class TumbleweedPlugin extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        if (getServer().getPluginManager().getPlugin("ModelEngine") == null) {
-            getLogger().severe("未找到 ModelEngine!风滚草需要 ModelEngine 4 (R4) 才能运行。");
+        if (getServer().getPluginManager().getPlugin("CraftEngine") == null) {
+            getLogger().severe("未找到 CraftEngine!风滚草需要 CraftEngine 26.7 才能运行。");
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
-        // 导出附加资源 (MythicMobs 怪物/生成器配置 / ModelEngine 蓝图)
+        CEFurnitureController.init(getLogger());
+
+        // 导出附加资源 (MythicMobs 怪物/生成器配置 / CraftEngine 家具包)
         if (pluginConfig.isAutoExportResources()) {
             exportResources();
         }
@@ -91,7 +95,7 @@ public class TumbleweedPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new MythicListener(tumbleweedManager), this);
         getServer().getPluginManager().registerEvents(new InteractionListener(tumbleweedManager), this);
 
-        getLogger().info("风滚草已启用 (MythicMobs 5.13 / ModelEngine R4 集成)。");
+        getLogger().info("风滚草已启用 (MythicMobs 5.13 / CraftEngine 26.7 家具托管)。");
     }
 
     @Override
@@ -103,14 +107,22 @@ public class TumbleweedPlugin extends JavaPlugin {
     }
 
     /**
-     * 将 jar 内嵌的 MythicMobs 配置与 ModelEngine 蓝图导出到服务器插件目录。
+     * 将 jar 内嵌的 MythicMobs 配置与 CraftEngine 家具资源导出到服务器插件目录。
+     * (CE 资源包需 /ce reload all 生效)
      */
     private void exportResources() {
         export("/mythicmobs/Mobs/Tumbleweed.yml", "plugins/MythicMobs/Mobs/Tumbleweed.yml");
         export("/mythicmobs/Mobs/Skeleton.yml", "plugins/MythicMobs/Mobs/Skeleton.yml");
         export("/mythicmobs/Spawners/TumbleweedSpawner.yml", "plugins/MythicMobs/Spawners/TumbleweedSpawner.yml");
-        export("/modelengine/blueprints/tumbleweed.bbmodel", "plugins/ModelEngine/blueprints/tumbleweed.bbmodel");
-        export("/modelengine/textures/tumbleweed.png", "plugins/ModelEngine/textures/tumbleweed.png");
+        export("/craftengine/pack.yml", "plugins/CraftEngine/resources/tumbleweed/pack.yml");
+        export("/craftengine/configuration/items.yml",
+                "plugins/CraftEngine/resources/tumbleweed/configuration/items.yml");
+        export("/craftengine/configuration/furniture/tumbleweed.yml",
+                "plugins/CraftEngine/resources/tumbleweed/configuration/furniture/tumbleweed.yml");
+        export("/craftengine/resourcepack/assets/tumbleweed/models/item/tumbleweed.json",
+                "plugins/CraftEngine/resources/tumbleweed/resourcepack/assets/tumbleweed/models/item/tumbleweed.json");
+        export("/craftengine/resourcepack/assets/tumbleweed/textures/item/tumbleweed.png",
+                "plugins/CraftEngine/resources/tumbleweed/resourcepack/assets/tumbleweed/textures/item/tumbleweed.png");
     }
 
     private void export(String resourcePath, String targetRelative) {

@@ -16,7 +16,7 @@ public class PluginConfig {
     /** 风力倍率 (原版 mod 的 windMultiplier)。 */
     private double windMultiplier;
 
-    /** 是否把 jar 内嵌的 MythicMobs 配置与 ModelEngine 蓝图导出到插件目录。 */
+    /** 是否把 jar 内嵌的 MythicMobs 配置与 craft-engine 家具资源导出到插件目录。 */
     private boolean autoExportResources;
 
     /** 远处降频:距最近玩家超过该距离 (格) 的风滚草物理降频;0 = 关闭。 */

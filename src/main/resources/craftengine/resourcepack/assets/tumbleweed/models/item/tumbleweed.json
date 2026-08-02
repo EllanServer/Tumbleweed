@@ -1,69 +1,31 @@
 {
-  "meta": {
-    "format_version": "4.5",
-    "model_format": "free",
-    "box_uv": true
+  "textures": {
+    "0": "tumbleweed:item/tumbleweed",
+    "particle": "tumbleweed:item/tumbleweed"
   },
-  "name": "tumbleweed",
-  "model_identifier": "tumbleweed",
-  "box_uv": true,
-  "resolution": {
-    "width": 16,
-    "height": 16
-  },
-  "visible_box": [
-    0.0,
-    0.0,
-    0.0
-  ],
   "elements": [
     {
       "name": "yz_0",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -0.1,
-        -4,
-        -8
-      ],
-      "to": [
-        0.1,
-        12,
-        8
-      ],
-      "uv_offset": [
+        7.9,
         0.0,
         0.0
       ],
+      "to": [
+        8.1,
+        16.0,
+        16.0
+      ],
       "rotation": {
         "angle": 0.0,
-        "axis": "x",
+        "axis": "y",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -71,7 +33,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -80,7 +42,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -89,7 +69,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -98,59 +78,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "xz_0",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -8,
-        3.9,
-        -8
+        0.0,
+        7.9,
+        0.0
       ],
       "to": [
-        8,
-        4.1,
-        8
-      ],
-      "uv_offset": [
-        0.0,
-        0.0
+        16.0,
+        8.1,
+        16.0
       ],
       "rotation": {
         "angle": 0.0,
-        "axis": "x",
+        "axis": "y",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -158,7 +111,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -167,7 +120,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -176,7 +147,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -185,59 +156,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "xy_0",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -8,
-        -4,
-        -0.1
+        0.0,
+        0.0,
+        7.9
       ],
       "to": [
-        8,
-        12,
-        0.1
-      ],
-      "uv_offset": [
-        0.0,
-        0.0
+        16.0,
+        16.0,
+        8.1
       ],
       "rotation": {
         "angle": 0.0,
-        "axis": "x",
+        "axis": "y",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -245,7 +189,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -254,7 +198,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -263,7 +225,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -272,59 +234,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "yz_45y",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -0.1,
-        -4,
-        -8
-      ],
-      "to": [
-        0.1,
-        12,
-        8
-      ],
-      "uv_offset": [
+        7.9,
         0.0,
         0.0
+      ],
+      "to": [
+        8.1,
+        16.0,
+        16.0
       ],
       "rotation": {
         "angle": 45.0,
         "axis": "y",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -332,7 +267,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -341,7 +276,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -350,7 +303,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -359,59 +312,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "xy_45y",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -8,
-        -4,
-        -0.1
+        0.0,
+        0.0,
+        7.9
       ],
       "to": [
-        8,
-        12,
-        0.1
-      ],
-      "uv_offset": [
-        0.0,
-        0.0
+        16.0,
+        16.0,
+        8.1
       ],
       "rotation": {
         "angle": 45.0,
         "axis": "y",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -419,7 +345,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -428,7 +354,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -437,7 +381,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -446,59 +390,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "yz_45z",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -0.1,
-        -4,
-        -8
-      ],
-      "to": [
-        0.1,
-        12,
-        8
-      ],
-      "uv_offset": [
+        7.9,
         0.0,
         0.0
+      ],
+      "to": [
+        8.1,
+        16.0,
+        16.0
       ],
       "rotation": {
         "angle": 45.0,
         "axis": "z",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -506,7 +423,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -515,7 +432,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -524,7 +459,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -533,59 +468,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "xz_45z",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -8,
-        3.9,
-        -8
+        0.0,
+        7.9,
+        0.0
       ],
       "to": [
-        8,
-        4.1,
-        8
-      ],
-      "uv_offset": [
-        0.0,
-        0.0
+        16.0,
+        8.1,
+        16.0
       ],
       "rotation": {
         "angle": 45.0,
         "axis": "z",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -593,7 +501,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -602,7 +510,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -611,7 +537,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -620,59 +546,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "xz_45x",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -8,
-        3.9,
-        -8
+        0.0,
+        7.9,
+        0.0
       ],
       "to": [
-        8,
-        4.1,
-        8
-      ],
-      "uv_offset": [
-        0.0,
-        0.0
+        16.0,
+        8.1,
+        16.0
       ],
       "rotation": {
         "angle": 45.0,
         "axis": "x",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -680,7 +579,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -689,7 +588,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -698,7 +615,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -707,59 +624,32 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     },
     {
       "name": "xy_45x",
-      "box_uv": true,
-      "rescale": false,
-      "locked": false,
       "from": [
-        -8,
-        -4,
-        -0.1
+        0.0,
+        0.0,
+        7.9
       ],
       "to": [
-        8,
-        12,
-        0.1
-      ],
-      "uv_offset": [
-        0.0,
-        0.0
+        16.0,
+        16.0,
+        8.1
       ],
       "rotation": {
         "angle": 45.0,
         "axis": "x",
         "origin": [
-          0.0,
-          4.0,
-          0.0
+          8.0,
+          8.0,
+          8.0
         ]
       },
       "faces": {
-        "north": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
-        "south": {
-          "uv": [
-            0.0,
-            0.0,
-            16.0,
-            16.0
-          ],
-          "texture": 0
-        },
         "east": {
           "uv": [
             0.0,
@@ -767,7 +657,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "west": {
           "uv": [
@@ -776,7 +666,25 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
+        },
+        "north": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            16.0,
+            16.0
+          ],
+          "texture": "#0"
         },
         "up": {
           "uv": [
@@ -785,7 +693,7 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         },
         "down": {
           "uv": [
@@ -794,52 +702,9 @@
             16.0,
             16.0
           ],
-          "texture": 0
+          "texture": "#0"
         }
-      },
-      "type": "cube",
-      "uuid": null
+      }
     }
-  ],
-  "textures": [
-    {
-      "path": "",
-      "name": "tumbleweed",
-      "source": "tumbleweed.png",
-      "uuid": "00000000-0000-0000-0000-000000000001",
-      "particle": true,
-      "render_mode": "default",
-      "render_sides": "double",
-      "frame_time": 1.0,
-      "frame_order_type": "loop",
-      "frame_interpolate": false,
-      "visible": true,
-      "internal": true
-    }
-  ],
-  "animations": [],
-  "outliner": [
-    {
-      "name": "root",
-      "origin": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "uuid": "00000000-0000-0000-0000-000000000002",
-      "children": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7,
-        8
-      ]
-    }
-  ],
-  "display": {},
-  "overrides": []
+  ]
 }
