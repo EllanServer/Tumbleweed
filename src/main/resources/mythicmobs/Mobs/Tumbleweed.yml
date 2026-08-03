@@ -1,12 +1,6 @@
 # ============================================================
 #  风滚草 - MythicMobs 怪物定义 (配置化,插件只负责物理)
 # ============================================================
-#  物理(风/旋转/碰撞)与消失(寿命+淡出+脱管)由插件接管;
-#  其余全部由本配置控制:血量、伤害免疫、践踏农田、掉落。
-#
-#  Despawn {F: 0, D: 0} = 禁用 MM 消失计时,避免与插件生命周期冲突。
-#  ApplyInvisibility 隐藏原猪实体,3D 模型由 ModelEngine 渲染。
-# ============================================================
 Tumbleweed:
   Type: PIG
   Display: "<#d3a95c>风滚草"
@@ -33,15 +27,15 @@ Tumbleweed:
   - INVULNERABLE_LAVA: 1
   - INVULNERABLE_DROWNING: 1
   - INVULNERABLE_EXPLOSION: 1
-  # 原版特性:命名牌可命名风滚草(插件监听器会额外标记为持久)
   Skills:
-  # --- 践踏农田 (原版 FarmlandMixin:落地瞬间 70% 概率毁田) ---
-  # MM 无 onLand 触发器,以 ~onTimer:10 + chance=0.7 近似:
-  # 每 0.5 秒 70% 概率 (风滚草在农田上弹跳时落地频率相近)
-  # onblock 条件检查脚下方块,仅当踩在农田上才转化
   - skill:TumbleweedTrample ~onTimer:10 chance=0.7
+  Drops:
+  - item{name=WHEAT_SEEDS;amount=1-3;chance=0.2}
+  - item{name=STICK;amount=1-2;chance=0.25}
+  - item{name=DEAD_BUSH;amount=1;chance=0.1}
+  - item{name=DIRT;amount=1;chance=0.1}
+  - item{name=MUSIC_DISC_13;amount=1;chance=0.05}
 
-# --- 践踏农田技能 ---
 TumbleweedTrample:
   Conditions:
   - onground
@@ -49,15 +43,3 @@ TumbleweedTrample:
   Skills:
   - setblock{m=DIRT;direction=down} @TriggerLocation
   - sound{s=BLOCK_GRAVEL_BREAK;volume=0.8;pitch=0.9} @self
-
-# --- 掉落表 (原版战利品概率) ---
-# 骷髅击杀额外计入音乐唱片权重 (原版 creeper_drop_music_discs 标签,
-# 用 !playerkills 条件排除玩家击杀,仅骷髅/其他非玩家击杀时掉落)
-  Drops:
-  - item{name=WHEAT_SEEDS;amount=1-3;chance=0.2}
-  - item{name=STICK;amount=1-2;chance=0.25}
-  - item{name=DEAD_BUSH;amount=1;chance=0.1}
-  - item{name=DIRT;amount=1;chance=0.1}
-  - item{name=MUSIC_DISC_13;amount=1;chance=0.05}
-    Conditions:
-    - !playerkills
