@@ -4,6 +4,8 @@ import net.tumbleweed.paper.config.PluginConfig;
 import net.tumbleweed.paper.listener.InteractionListener;
 import net.tumbleweed.paper.listener.MythicListener;
 import net.tumbleweed.paper.model.CullingIntegration;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -101,7 +103,7 @@ public class TumbleweedPlugin extends JavaPlugin {
                 CullingIntegration culling = new CullingIntegration();
                 if (culling.available()) {
                     tumbleweedManager.enableCulling(culling);
-                    getLogger().info("已启用 CraftEngine 可见性判定 (性能优化)。");
+                    getLogger().info("已启用 CraftEngine 可见性判定 (性能优化,由 CE 异步线程池执行)。");
                 } else {
                     getLogger().warning("CraftEngine 已安装但可见性判定初始化失败,回退为距离降频。");
                 }
@@ -113,6 +115,18 @@ public class TumbleweedPlugin extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new MythicListener(tumbleweedManager), this);
         getServer().getPluginManager().registerEvents(new InteractionListener(tumbleweedManager), this);
+        // 玩家生命周期 -> CE 可见性判定的注册/注销 (事件驱动,主线程无周期遍历)
+        getServer().getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            public void onJoin(org.bukkit.event.player.PlayerJoinEvent event) {
+                tumbleweedManager.onPlayerJoin(event.getPlayer());
+            }
+
+            @EventHandler
+            public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+                tumbleweedManager.onPlayerQuit(event.getPlayer().getUniqueId());
+            }
+        }, this);
 
         getLogger().info("风滚草已启用 (MythicMobs 5.13 / ModelEngine R4 集成)。");
     }

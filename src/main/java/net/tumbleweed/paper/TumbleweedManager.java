@@ -1,5 +1,6 @@
 package net.tumbleweed.paper;
 
+import net.tumbleweed.paper.config.PluginConfig;
 import net.tumbleweed.paper.model.CullingIntegration;
 import net.tumbleweed.paper.model.ModelController;
 import org.bukkit.Bukkit;
@@ -9,8 +10,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,10 +32,16 @@ public class TumbleweedManager {
     private static final double DESPAWN_RANGE_SQ = 110 * 110; // 原版脱管距离
 
     private final TumbleweedPlugin plugin;
+    // 注册表:UUID -> Tumbleweed,供按实体查询 (get/isTumbleweed)
     private final Map<UUID, Tumbleweed> tumbleweeds = new ConcurrentHashMap<>();
+    // 每 tick 遍历列表:TickerList 数组遍历 + 标记删除 (借鉴 SparklyPaper/CE 的 BlockEntityTickersList),
+    // 避免 CHM 迭代器分配与遍历中反复写,删除集中在 tick 末尾一次 System.arraycopy 批量搬移
+    private final TickerList<Tumbleweed> ticking = new TickerList<>();
     private final Map<UUID, Double> playerDistSq = new HashMap<>(); // 每风滚草 -> 最近玩家距离平方
+    private final Map<UUID, Integer> worldCounts = new HashMap<>(); // 世界 UUID -> 该世界活跃风滚草数
     private CullingIntegration culling; // 可选:CE 可见性判定 (未安装 CraftEngine 时为 null)
     private BukkitTask task;
+    private final Random random = new Random();
     private int windTicks;        // 原版:每 2 分钟翻转一次风向
     private int playerCheckTicks; // 玩家距离缓存刷新计数
 
@@ -56,11 +63,13 @@ public class TumbleweedManager {
             task.cancel();
             task = null;
         }
-        for (Tumbleweed t : tumbleweeds.values()) {
-            ModelController.detach(t.entity());
+        for (int i = 0; i < ticking.size(); i++) {
+            ModelController.detach(ticking.get(i).entity());
         }
+        ticking.clear();
         tumbleweeds.clear();
         playerDistSq.clear();
+        worldCounts.clear();
         if (culling != null) {
             culling.shutdown();
         }
@@ -77,44 +86,48 @@ public class TumbleweedManager {
         if (++playerCheckTicks >= PLAYER_CHECK_INTERVAL) {
             playerCheckTicks = 0;
             refreshPlayerDistances();
-            // CE 可见性判定与距离缓存同周期刷新
-            if (culling != null && plugin.pluginConfig().cullingEnabled()) {
-                culling.tick(this, plugin.pluginConfig().cullingNearDistance(),
-                        plugin.pluginConfig().distantPhysicsDistance());
-            }
         }
 
         int distantDistance = plugin.pluginConfig().distantPhysicsDistance();
         int distantInterval = plugin.pluginConfig().distantPhysicsInterval();
 
-        Iterator<Map.Entry<UUID, Tumbleweed>> it = tumbleweeds.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<UUID, Tumbleweed> entry = it.next();
-            Tumbleweed tw = entry.getValue();
+        // 数组遍历 (TickerList 思路):删除只标记索引,结束后一次性批量搬移
+        for (int i = 0; i < ticking.size(); i++) {
+            Tumbleweed tw = ticking.get(i);
             if (tw.entity().isDead() || !tw.entity().isValid()) {
+                if (culling != null) {
+                    culling.unregisterTumbleweed(tw);
+                }
                 ModelController.detach(tw.entity());
-                it.remove();
-                playerDistSq.remove(entry.getKey());
+                ticking.markRemoved(i);
+                tumbleweeds.remove(tw.entity().getUniqueId());
+                playerDistSq.remove(tw.entity().getUniqueId());
+                worldCounts.merge(tw.entity().getWorld().getUID(), -1, Integer::sum);
                 continue;
             }
 
-            Double dSq = playerDistSq.get(entry.getKey());
+            Double dSq = playerDistSq.get(tw.entity().getUniqueId());
 
             // 脱管检查 (原版:最近玩家三维距离 > 110 → 消失)
             if (!tw.isPersistent() && dSq != null && dSq > DESPAWN_RANGE_SQ) {
-                playerDistSq.remove(entry.getKey());
-                it.remove();
+                if (culling != null) {
+                    culling.unregisterTumbleweed(tw);
+                }
+                playerDistSq.remove(tw.entity().getUniqueId());
+                ticking.markRemoved(i);
+                tumbleweeds.remove(tw.entity().getUniqueId());
+                worldCounts.merge(tw.entity().getWorld().getUID(), -1, Integer::sum);
                 ModelController.detach(tw.entity());
                 tw.entity().remove();
                 continue;
             }
 
             // 远处降频:玩家视距外且未淡出 → 每 N tick 才跑物理与渲染同步。
-            // 判定来源:CE 可见性 (视锥 + 遮挡,32~96 格区间查询) 或 96 格球半径兜底;
+            // 判定来源:CE 可见性 (视锥 + 遮挡,由 CE 异步线程池 50ms 级判定) 或 96 格球半径兜底;
             // CE 未安装时 culling 为 null,回退为原球半径降频,行为完全一致。
             boolean distant;
             if (culling != null && plugin.pluginConfig().cullingEnabled()) {
-                Boolean visible = culling.isVisibleToAnyone(entry.getKey());
+                Boolean visible = culling.isVisibleToAnyone(tw);
                 // CE 判定未命中(刚生成/刷新间隙)时回退 96 格球半径兜底
                 distant = visible != null ? !visible
                         : dSq != null && dSq > (double) distantDistance * distantDistance;
@@ -128,12 +141,12 @@ public class TumbleweedManager {
             }
 
             tw.tick(this);
-            // 旋转 + 压扁同步到 ModelEngine root 骨骼;淡出 alpha 乘入 scale 模拟渐隐
-            // (ModelEngine 无透明度 API,原版 80 tick 透明度渐变以尺寸渐变近似)
-            float fade = tw.alpha();
-            ModelController.sync(tw.entity(), tw.rotation().quat,
-                    tw.renderScaleX() * fade, tw.renderScaleY() * fade, tw.renderScaleZ() * fade);
+            // 旋转/压扁/淡出已由 Tumbleweed 在物理 tick 末尾写入 volatile 渲染快照,
+            // ModelController 注册的 ME tick 任务 (PRE_MODEL_TICK,异步线程) 惰性同步到 root 骨骼,
+            // 主线程不再参与渲染同步 (消除 SafeTransform 跨线程竞争,且省去每 tick 链式查找)
         }
+        // 批量搬移被标记删除的元素 (每 tick 末尾一次,而不是遍历中反复删除)
+        ticking.compact();
     }
 
     /** 刷新每个风滚草到最近玩家的距离平方 (同世界在线玩家,位置一次取)。 */
@@ -149,7 +162,8 @@ public class TumbleweedManager {
             }
             playersByWorld.computeIfAbsent(p.getWorld(), w -> new java.util.ArrayList<>()).add(p.getLocation());
         }
-        for (Tumbleweed tw : tumbleweeds.values()) {
+        for (int i = 0; i < ticking.size(); i++) {
+            Tumbleweed tw = ticking.get(i);
             Entity e = tw.entity();
             Location el = e.getLocation();
             double best = Double.MAX_VALUE;
@@ -169,20 +183,43 @@ public class TumbleweedManager {
     /** 注册新的风滚草 (由 MythicListener 在 MM 实体生成后调用)。 */
     public void register(Tumbleweed tw) {
         if (tumbleweeds.putIfAbsent(tw.entity().getUniqueId(), tw) == null) {
-            ModelController.attach(tw.entity());
+            ModelController.attach(tw);
             playerDistSq.put(tw.entity().getUniqueId(), Double.MAX_VALUE);
+            worldCounts.merge(tw.entity().getWorld().getUID(), 1, Integer::sum);
+            ticking.add(tw);
+            if (culling != null) {
+                culling.registerTumbleweed(tw);
+            }
         }
     }
 
     /** 移除并清理 (死亡 / 淡出结束 / 超出范围)。 */
     public void remove(Tumbleweed tw) {
-        Tumbleweed removed = tumbleweeds.remove(tw.entity().getUniqueId());
-        if (removed != null) {
+        if (tumbleweeds.remove(tw.entity().getUniqueId()) != null) {
             playerDistSq.remove(tw.entity().getUniqueId());
+            worldCounts.merge(tw.entity().getWorld().getUID(), -1, Integer::sum);
+            ticking.markRemoved(tw.tickIndex());
             ModelController.detach(tw.entity());
+            if (culling != null) {
+                culling.unregisterTumbleweed(tw);
+            }
             if (tw.entity().isValid() && !tw.entity().isDead()) {
                 tw.entity().remove();
             }
+        }
+    }
+
+    /** 玩家上线:把活跃风滚草注册进该玩家的 CE 可见性判定 (事件驱动,无周期遍历)。 */
+    public void onPlayerJoin(org.bukkit.entity.Player player) {
+        if (culling != null) {
+            culling.onPlayerJoin(player, this);
+        }
+    }
+
+    /** 玩家退服:丢弃该玩家的 CE 引用。 */
+    public void onPlayerQuit(UUID playerId) {
+        if (culling != null) {
+            culling.onPlayerQuit(playerId);
         }
     }
 
@@ -216,21 +253,15 @@ public class TumbleweedManager {
             living.setAI(false);
             living.setCollidable(false);
         }
-        Tumbleweed tw = new Tumbleweed(entity, 1 + new java.util.Random().nextInt(4));
+        Tumbleweed tw = new Tumbleweed(entity, 1 + random.nextInt(4));
         tw.setPersistent(false);
         register(tw);
         return true;
     }
 
-    /** 指定世界内的活跃风滚草数量 (生成上限判定用)。 */
+    /** 指定世界内的活跃风滚草数量 (生成上限判定用,O(1) 查表)。 */
     public int countInWorld(org.bukkit.World world) {
-        int n = 0;
-        for (Tumbleweed tw : tumbleweeds.values()) {
-            if (tw.entity().getWorld() == world) {
-                n++;
-            }
-        }
-        return n;
+        return worldCounts.getOrDefault(world.getUID(), 0);
     }
 
     /** 判断实体是否为风滚草 (用于避免互推)。 */
@@ -239,10 +270,120 @@ public class TumbleweedManager {
     }
 
     public int count() {
-        return tumbleweeds.size();
+        return ticking.size();
     }
 
     public Iterable<Tumbleweed> all() {
         return tumbleweeds.values();
+    }
+
+    /**
+     * 数组 + 标记删除列表。思路借鉴 SparklyPaper 的 BlockEntityTickersList (CE 的 TickersList 同源):
+     * 每 tick 遍历直接走底层数组 (无迭代器分配),删除只标记索引,统一在 tick 末尾
+     * 用 System.arraycopy 一次性批量搬移 —— 比迭代器 remove 快 (无每次删除的数组移位)。
+     */
+    private static final class TickerList<T> {
+        private Object[] elements = new Object[16];
+        private int size;
+        private int[] marked = new int[8];
+        private int markedCount;
+        private int startSearchFromIndex = -1;
+
+        T get(int index) {
+            @SuppressWarnings("unchecked")
+            T e = (T) elements[index];
+            return e;
+        }
+
+        int size() {
+            return size;
+        }
+
+        void add(T e) {
+            if (size == elements.length) {
+                elements = java.util.Arrays.copyOf(elements, size * 2);
+            }
+            elements[size] = e;
+            if (e instanceof Tumbleweed tw) {
+                tw.setTickIndex(size);
+            }
+            size++;
+        }
+
+        /** 标记待删除索引 (同一索引重复标记无害,compact 按计数处理)。 */
+        void markRemoved(int index) {
+            if (startSearchFromIndex == -1 || index < startSearchFromIndex) {
+                startSearchFromIndex = index;
+            }
+            if (markedCount == marked.length) {
+                marked = java.util.Arrays.copyOf(marked, marked.length * 2);
+            }
+            marked[markedCount++] = index;
+        }
+
+        void clear() {
+            java.util.Arrays.fill(elements, 0, size, null);
+            size = 0;
+            markedCount = 0;
+            startSearchFromIndex = -1;
+        }
+
+        /** 批量搬移被标记删除的元素,并同步剩余元素的 tickIndex。 */
+        void compact() {
+            if (startSearchFromIndex == -1) {
+                return;
+            }
+            final int requiredMatches = markedCount;
+            if (requiredMatches == 0) {
+                startSearchFromIndex = -1;
+                return;
+            }
+
+            final Object[] a = elements;
+            int writeIndex = startSearchFromIndex;
+            int lastCopyIndex = startSearchFromIndex;
+            int matches = 0;
+
+            for (int readIndex = startSearchFromIndex; readIndex < size; readIndex++) {
+                if (isMarked(readIndex)) {
+                    matches++;
+                    final int blockLength = readIndex - lastCopyIndex;
+                    if (blockLength > 0) {
+                        System.arraycopy(a, lastCopyIndex, a, writeIndex, blockLength);
+                        writeIndex += blockLength;
+                    }
+                    lastCopyIndex = readIndex + 1;
+                    if (matches == requiredMatches) {
+                        break;
+                    }
+                }
+            }
+
+            final int finalBlockLength = size - lastCopyIndex;
+            if (finalBlockLength > 0) {
+                System.arraycopy(a, lastCopyIndex, a, writeIndex, finalBlockLength);
+                writeIndex += finalBlockLength;
+            }
+
+            if (writeIndex < size) {
+                java.util.Arrays.fill(a, writeIndex, size, null);
+            }
+            size = writeIndex;
+            // 被搬移元素索引变化,同步更新 (remove() 依赖 tickIndex 正确)
+            for (int i = startSearchFromIndex; i < size; i++) {
+                ((Tumbleweed) a[i]).setTickIndex(i);
+            }
+            markedCount = 0;
+            startSearchFromIndex = -1;
+        }
+
+        private boolean isMarked(int index) {
+            for (int i = 0; i < markedCount; i++) {
+                if (marked[i] == index) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }
