@@ -3,12 +3,15 @@
 # ============================================================
 
 # --- 风滚草踩踏农田 ---
+# 由 mob 配置 ~onTimer:5 调用; fallingspeed 条件近似原版 "坠落撞击" (fallOn):
+# 只有正在下落 (下落速度 >0.3) 且脚下是农田时才判定, 滚动经过不触发
 TumbleweedTrample:
   Conditions:
-  - onground
   - onblock{m=FARMLAND}
+  - fallingspeed{s=>0.3}
   Skills:
-  - setblock{m=DIRT;direction=down} @TriggerLocation
+  # setblock 官方参数只有 material/physics (wiki setblocktype), direction 不存在
+  - setblock{m=DIRT} @TriggerLocation
   - sound{s=BLOCK_GRAVEL_BREAK;volume=0.8;pitch=0.9} @self
 
 # --- 骷髅射击风滚草 ---
@@ -17,8 +20,9 @@ ShootTumbleweed:
   - distance{a=9;b=18}
   - lineofsight
   Skills:
-  # MobsInRadius 自带 types 参数按 MythicMob 类型过滤 (jar 内 MobsInRadiusTargeter),
-  # 无需 conditions=[mythicmobtype{...}] 二次判断
+  # MobsInRadius 自带 types 参数按 MythicMob 类型过滤 (官方 Targeters/MobsInRadius);
+  # projectile 官方参数 bulletType (旧名 projectile), velocity 单位 blocks/秒
+  # (原版箭速 ≈30 blocks/s), velocityMode/amount 参数不存在 (已核对 wiki)
   - look
-  - projectile{projectile=ARROW;velocity=32;velocityMode=FORWARD;amount=1;power=1} @MobsInRadius{r=18;limit=1;types=Tumbleweed}
+  - projectile{bulletType=ARROW;velocity=32} @MobsInRadius{r=18;limit=1;types=Tumbleweed}
   - sound{s=ENTITY_SKELETON_SHOOT;volume=1;pitch=0.8-1.2} @self
