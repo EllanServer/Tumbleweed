@@ -24,8 +24,10 @@ import java.util.function.Consumer;
  *
  * 渲染对齐原版 RenderTumbleweed:
  *  - 旋转/缩放轴心: 原版 translate(0, bbHeight*0.3, 0) —— 轴心在实体 0.3 倍高处;
- *    blueprint root group origin 已设 [0, 4.8, 0] (0.3 格),骨骼变换围绕该 pivot,
- *    静态配置零运行时开销 (size=2 精确, 小尺寸误差 ≤0.15 格, 视觉可忽略)
+ *    blueprint root origin 保持 [0,0,0] (BB group origin 的 ME 解释有歧义,可能把
+ *    模型整体平移导致悬浮), 改为运行时 pivot: 主线程物理 tick 调用
+ *    {@link #updatePivot(Tumbleweed)} 设置 root.setPivotLocation(实体位置 + 0.3*mcSize),
+ *    每次写入全新 Location 后不再改动, ME 异步线程只读该引用 —— 无跨线程竞争。
  *  - scale(size, size, size) * scale(1, stretch, 1) → 最终 (size, size*stretch, size),
  *    仅 Y 轴压扁; 用 root 骨骼 localTransform.setScale 而非 ActiveModel.setScale
  *    (display scale 围绕脚底, 骨骼 scale 围绕 pivot, 与原版一致)
@@ -57,6 +59,12 @@ public final class ModelController {
     public static final String MODEL_ID = "tumbleweed";
     public static final String ROOT_BONE = "root";
 
+    /**
+     * 每实体渲染同步闭包注册表 (entityId -> RenderSync):
+     * 主线程 attach 注册、updatePivot/detach 读取与移除, 异步线程不触碰 —— 普通 HashMap 即可。
+     */
+    private static final java.util.Map<java.util.UUID, RenderSync> SYNC_BY_ENTITY = new java.util.HashMap<>();
+
     private ModelController() {
     }
 
@@ -82,7 +90,9 @@ public final class ModelController {
             modeled.setBaseEntityVisible(false);
             // 渲染同步挂到 ME 异步线程的 PRE_MODEL_TICK 阶段 (entity.tick() 之前,
             // transform 会被本次 tick 的 recordSafe/sendToClient 读入,同 tick 生效)
-            modeled.registerTickTask(ModeledEntity.Phase.PRE_MODEL_TICK, new RenderSync(tw, model));
+            RenderSync sync = new RenderSync(tw, model);
+            SYNC_BY_ENTITY.put(entity.getUniqueId(), sync);
+            modeled.registerTickTask(ModeledEntity.Phase.PRE_MODEL_TICK, sync);
         } catch (Exception e) {
             // 模型加载失败不应中断风滚草物理,但记录以便排查
             java.util.logging.Logger.getLogger("Tumbleweed-ME").fine(() -> "模型 attach 失败: " + e);
@@ -94,6 +104,7 @@ public final class ModelController {
         if (entity == null) {
             return;
         }
+        SYNC_BY_ENTITY.remove(entity.getUniqueId());
         try {
             ModeledEntity modeled = ModelEngineAPI.getModeledEntity(entity);
             if (modeled != null) {
@@ -102,6 +113,28 @@ public final class ModelController {
             }
         } catch (Exception e) {
             java.util.logging.Logger.getLogger("Tumbleweed-ME").fine(() -> "模型 detach 异常: " + e);
+        }
+    }
+
+    /** 原版轴心比例: 模型旋转/缩放围绕实体 0.3 倍高度处 (RenderTumbleweed.translate(0, h*0.3, 0))。 */
+    public static float pivotHeight(Tumbleweed tw) {
+        return 0.3f * (float) tw.mcSize();
+    }
+
+    /**
+     * 主线程 (物理 tick) 更新 root 骨骼的旋转/缩放轴心到实体上方 0.3 倍高处。
+     * 每次写入全新 Location 后不再改动, ME 异步线程只读引用, 无跨线程竞争。
+     * 性能: 每个物理 tick 一次 Location 分配 (降频后 ~5 次/秒/实体), 可忽略。
+     */
+    public static void updatePivot(Tumbleweed tw) {
+        Entity entity = tw.entity();
+        if (entity == null || !entity.isValid()) {
+            return;
+        }
+        // 通过 attach 时注册的 RenderSync 获取 root 引用 (懒加载后持有), 避免重复链式查找
+        RenderSync sync = RenderSync.of(tw);
+        if (sync != null) {
+            sync.setPivot(entity.getLocation().add(0, pivotHeight(tw), 0));
         }
     }
 
@@ -119,10 +152,27 @@ public final class ModelController {
         private final Quaternionf lastRot = new Quaternionf();
         private final float[] lastScale = new float[]{1f, 1f, 1f};
         private boolean hasLast;
+        // 主线程每物理 tick 写入的轴心位置 (全新建对象,写后不改), 异步线程惰性应用
+        private volatile org.bukkit.Location pivotLocation;
+        private org.bukkit.Location lastAppliedPivot;
+        private boolean loggedRootMissing;
 
         RenderSync(Tumbleweed tw, ActiveModel model) {
             this.tw = tw;
             this.model = model;
+        }
+
+        static RenderSync of(Tumbleweed tw) {
+            return SYNC_BY_ENTITY.get(tw.entity().getUniqueId());
+        }
+
+        static void unregister(Tumbleweed tw) {
+            SYNC_BY_ENTITY.remove(tw.entity().getUniqueId());
+        }
+
+        /** 主线程: 更新旋转/缩放轴心 (实体上方 0.3 倍高处, 对齐原版 translate)。 */
+        void setPivot(org.bukkit.Location location) {
+            this.pivotLocation = location;
         }
 
         @Override
@@ -140,12 +190,25 @@ public final class ModelController {
                     root = bones.get(ROOT_BONE);
                 }
                 if (root == null) {
+                    // 骨骼名为 "root" 的 group 缺失 (bbmodel outliner 顶层名必须是 root) ——
+                    // 静默重试会让"模型不旋转"无法排查, 特此记录一次
+                    if (!loggedRootMissing) {
+                        loggedRootMissing = true;
+                        java.util.logging.Logger.getLogger("Tumbleweed-ME")
+                                .warning("blueprint 缺少名为 \"" + ROOT_BONE + "\" 的根骨骼, 模型旋转/缩放将不生效");
+                    }
                     return; // 骨骼尚未生成,下个 tick 重试
                 }
                 // ME 默认 hasGlobalRotation=false,需开启才能让 leftQuaternion 生效于渲染
                 root.setHasGlobalRotation(true);
             }
             try {
+                org.bukkit.Location pivot = pivotLocation;
+                if (pivot != null && pivot != lastAppliedPivot) {
+                    // 轴心随实体移动每物理 tick 更新, 惰性应用
+                    root.setPivotLocation(pivot);
+                    lastAppliedPivot = pivot;
+                }
                 float rx = tw.renderRotX, ry = tw.renderRotY, rz = tw.renderRotZ, rw = tw.renderRotW;
                 float sx = tw.renderScaleX, sy = tw.renderScaleY, sz = tw.renderScaleZ;
                 if (!hasLast || lastRot.x != rx || lastRot.y != ry || lastRot.z != rz || lastRot.w != rw) {

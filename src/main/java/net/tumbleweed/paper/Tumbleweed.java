@@ -1,5 +1,6 @@
 package net.tumbleweed.paper;
 
+import net.tumbleweed.paper.model.ModelController;
 import net.tumbleweed.paper.model.RotationState;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -203,6 +204,9 @@ public class Tumbleweed {
         // 物理与旋转完成后写渲染快照,供 ModelEngine 异步线程同步 (降频跳过的 tick 不写,
         // 快照不变,ME 侧惰性检测自然跳过,行为与原先降频时跳过 sync 一致)
         updateRenderSnapshot();
+        // 主线程更新模型旋转/缩放轴心 (实体上方 0.3 倍高处, 对齐原版 render translate);
+        // ME 异步线程只读新引用, 无跨线程竞争
+        ModelController.updatePivot(this);
 
         // 践踏农田已由 MythicMobs 配置实现 (Tumbleweed.yml 的 TumbleweedTrample 技能)
         // 脱管检查 (玩家离开 160 格) 由 TumbleweedManager 统一处理,使用缓存的最近玩家距离
