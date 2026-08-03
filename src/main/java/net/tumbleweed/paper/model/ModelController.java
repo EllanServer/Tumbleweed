@@ -3,6 +3,7 @@ package net.tumbleweed.paper.model;
 import com.ticxo.modelengine.api.ModelEngineAPI;
 import com.ticxo.modelengine.api.model.ActiveModel;
 import com.ticxo.modelengine.api.model.ModeledEntity;
+import com.ticxo.modelengine.api.model.bone.ManualAnimator;
 import com.ticxo.modelengine.api.model.bone.ModelBone;
 import net.tumbleweed.paper.Tumbleweed;
 import org.bukkit.entity.Entity;
@@ -42,9 +43,12 @@ import java.util.function.Consumer;
  *    但写侧 (Transform setter) 无 release fence —— 主线程直接写 transform 字段存在
  *    跨线程数据竞争 (x86 上碰巧可见,Folia/其他平台不保证)。
  *  - 因此 transform 写入必须发生在 ME 自己的异步线程内:
- *    这里在 attach 时注册 {@link ModeledEntity.Phase#PRE_MODEL_TICK} tick 任务,
- *    回调在 ME 异步线程执行,读取 Tumbleweed 主线程物理后写入的 volatile 渲染快照
- *    (零分配中转),惰性同步到 root 骨骼。主线程零渲染开销,且与 ME 更新同线程无竞争。
+ *    这里 attach 时注册 {@link ModeledEntity.Phase#PRE_MODEL_RENDER} tick 任务,
+ *    仅做 destroy 兜底 + root 骨骼懒加载 + 一次性挂载 {@link ManualAnimator};
+ *    变换写入由 {@link RenderSync#animate} 在骨骼 tick 内完成 (identity 重置之后,
+ *    see RenderSync 注释),回调在 ME 异步线程执行,读取 Tumbleweed 主线程物理后写入的
+ *    volatile 渲染快照 (零分配中转),惰性同步到 root 骨骼。主线程零渲染开销,
+ *    且与 ME 更新同线程无竞争。
  *
  * 顺带收益 (相比旧的每 tick 主线程 sync):
  *  - 删除两个全局 ConcurrentHashMap (LAST_SCALE / LAST_ROT):每实体的惰性状态收进
@@ -88,11 +92,12 @@ public final class ModelController {
             }
             modeled.addModel(model, true);
             modeled.setBaseEntityVisible(false);
-            // 渲染同步挂到 ME 异步线程的 PRE_MODEL_TICK 阶段 (entity.tick() 之前,
-            // transform 会被本次 tick 的 recordSafe/sendToClient 读入,同 tick 生效)
-            RenderSync sync = new RenderSync(tw, model);
+            // 渲染同步挂到 ME 异步线程的 PRE_MODEL_RENDER 阶段 (骨骼 tick 之后、打包发送之前):
+            // 该任务只负责 destroy 兜底 + root 骨骼懒加载 + 一次性挂载 ManualAnimator,
+            // 实际变换写入由 ManualAnimator.animate() 在骨骼 tick 内完成 (见 RenderSync 注释)
+            RenderSync sync = new RenderSync(tw, model, modeled);
             SYNC_BY_ENTITY.put(entity.getUniqueId(), sync);
-            modeled.registerTickTask(ModeledEntity.Phase.PRE_MODEL_TICK, sync);
+            modeled.registerTickTask(ModeledEntity.Phase.PRE_MODEL_RENDER, (Consumer<ModeledEntity>) ignored -> sync.lazyInit());
         } catch (Exception e) {
             // 模型加载失败不应中断风滚草物理,但记录以便排查
             java.util.logging.Logger.getLogger("Tumbleweed-ME").fine(() -> "模型 attach 失败: " + e);
@@ -139,15 +144,26 @@ public final class ModelController {
     }
 
     /**
-     * 每实体渲染同步闭包:在 ME 异步线程 (PRE_MODEL_TICK) 每 tick 被调用,
-     * 读取 Tumbleweed 的 volatile 渲染快照,惰性同步到 root 骨骼。
-     * 所有状态 (lastRot/lastScale/hasLast) 仅回调线程访问,无需同步。
+     * 每实体渲染同步闭包:通过 ModelBone.setManualAnimator 挂到骨骼 tick 管线,
+     * 由 ME 在每 tick 骨骼更新时调用 {@link #animate(ModelBone)}。
+     *
+     * 为什么不用 tick 任务直接写骨骼 (原实现 PRE_MODEL_TICK):
+     *  反编译 ModelBoneImpl.tick() 确认 —— 每 tick 开头执行 localTransform.identity()
+     *  重置,再从 blueprint + 动画系统重建本地变换; PRE_MODEL_TICK 在骨骼 tick 之前,
+     *  写入的 setLeftQuaternion/setScale 被 identity() 逐 tick 清空 → 模型永不旋转。
+     *  ManualAnimator.animate() 是官方"手动动画"钩子: identity() 重置之后、
+     *  动画系统 (updateBone) 之后、渲染打包之前调用, 写入必然生效;
+     *  挂载后该骨骼由我们完全接管 (跳过动画系统)。
+     *
+     * 所有状态 (lastRot/lastScale/hasLast/root) 仅 ME 异步线程访问,无需同步;
+     * 主线程只写 volatile 快照 (renderRotX..renderRotW / renderScaleX..Z) 与 pivotLocation 新引用。
      */
-    static final class RenderSync implements Consumer<ModeledEntity> {
+    static final class RenderSync implements ManualAnimator {
 
         private final Tumbleweed tw;
         private final ActiveModel model;
-        private ModelBone root; // 懒加载:addModel 后骨骼可能延迟生成,首次回调时重试获取
+        private final ModeledEntity modeled; // destroy 兜底用
+        private ModelBone root; // 懒加载:addModel 后骨骼可能延迟生成,首次 tick 时重试获取
         // 惰性检测:旋转/缩放未变化 (静止/降频) 时跳过 set,省模型同步包
         private final Quaternionf lastRot = new Quaternionf();
         private final float[] lastScale = new float[]{1f, 1f, 1f};
@@ -157,9 +173,10 @@ public final class ModelController {
         private org.bukkit.Location lastAppliedPivot;
         private boolean loggedRootMissing;
 
-        RenderSync(Tumbleweed tw, ActiveModel model) {
+        RenderSync(Tumbleweed tw, ActiveModel model, ModeledEntity modeled) {
             this.tw = tw;
             this.model = model;
+            this.modeled = modeled;
         }
 
         static RenderSync of(Tumbleweed tw) {
@@ -175,12 +192,16 @@ public final class ModelController {
             this.pivotLocation = location;
         }
 
-        @Override
-        public void accept(ModeledEntity modeledEntity) {
+        /**
+         * PRE_MODEL_RENDER tick 任务 (每 tick, ME 异步线程):
+         * destroy 兜底 + root 骨骼懒加载 + 一次性挂载 ManualAnimator。
+         * 挂载后实际写入全部走 {@link #animate(ModelBone)}。
+         */
+        void lazyInit() {
             // 实体死亡但清理未及时执行时,立即销毁模型避免残留
             if (tw.entity() == null || !tw.entity().isValid() || tw.entity().isDead()) {
-                if (!modeledEntity.isDestroyed()) {
-                    modeledEntity.destroy();
+                if (!modeled.isDestroyed()) {
+                    modeled.destroy();
                 }
                 return;
             }
@@ -199,14 +220,28 @@ public final class ModelController {
                     }
                     return; // 骨骼尚未生成,下个 tick 重试
                 }
-                // ME 默认 hasGlobalRotation=false,需开启才能让 leftQuaternion 生效于渲染
+                // ME 默认 hasGlobalRotation=false,需开启才能让 leftQuaternion 作为全局(世界空间)旋转生效
                 root.setHasGlobalRotation(true);
+                // 挂载手动动画: 之后每 tick 由 ME 在骨骼 tick 内调用 animate(this),
+                // 该骨骼跳过动画系统, 变换完全由我们写入 (identity 重置之后, 写入必生效)
+                root.setManualAnimator(this);
             }
+        }
+
+        /** 骨骼 tick 内 (identity 重置之后) 由 ME 调用:读取 volatile 快照惰性写入旋转/缩放/轴心。 */
+        @Override
+        public boolean applyBoneDefaultLocal() {
+            // 应用 blueprint 默认位置/旋转后再由 animate 覆盖 (root 默认即 identity, 无实际影响)
+            return true;
+        }
+
+        @Override
+        public void animate(ModelBone bone) {
             try {
                 org.bukkit.Location pivot = pivotLocation;
                 if (pivot != null && pivot != lastAppliedPivot) {
                     // 轴心随实体移动每物理 tick 更新, 惰性应用
-                    root.setPivotLocation(pivot);
+                    bone.setPivotLocation(pivot);
                     lastAppliedPivot = pivot;
                 }
                 float rx = tw.renderRotX, ry = tw.renderRotY, rz = tw.renderRotZ, rw = tw.renderRotW;
@@ -214,14 +249,14 @@ public final class ModelController {
                 if (!hasLast || lastRot.x != rx || lastRot.y != ry || lastRot.z != rz || lastRot.w != rw) {
                     lastRot.set(rx, ry, rz, rw);
                     // Transform.setLeftQuaternion 内部复制四元数,复用 lastRot 安全
-                    root.getLocalTransform().setLeftQuaternion(lastRot);
+                    bone.getLocalTransform().setLeftQuaternion(lastRot);
                 }
                 if (!hasLast || lastScale[0] != sx || lastScale[1] != sy || lastScale[2] != sz) {
                     lastScale[0] = sx;
                     lastScale[1] = sy;
                     lastScale[2] = sz;
                     // 骨骼本地缩放 (围绕 root pivot = 原版 0.3h 轴心), 替代 ActiveModel.setScale
-                    root.getLocalTransform().setScale(new Vector3f(sx, sy, sz));
+                    bone.getLocalTransform().setScale(new Vector3f(sx, sy, sz));
                 }
                 hasLast = true;
             } catch (Exception e) {
