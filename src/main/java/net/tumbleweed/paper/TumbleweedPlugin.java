@@ -86,20 +86,11 @@ public class TumbleweedPlugin extends JavaPlugin {
         }
 
         // 导出附加资源 (MythicMobs 怪物/生成器配置 / ModelEngine 蓝图)
-        boolean exported = false;
         if (pluginConfig.isAutoExportResources()) {
-            exported = exportResources();
+            exportResources();
         }
 
         tumbleweedManager = new TumbleweedManager(this);
-
-        // 首次导出后触发 MM 重载,使 Tumbleweed mob 类型立即可用 (无需手动 /mm reload)
-        if (exported) {
-            getServer().getScheduler().runTaskLater(this, () -> {
-                getServer().dispatchCommand(getServer().getConsoleSender(), "mm reload");
-                getLogger().info("已触发 MythicMobs 重载 (首次导出配置后生效)。");
-            }, 20L); // 延迟 1 秒确保 MM 已完成初始化
-        }
         // 自然生成:由插件按原版 Spawner 逻辑实现 (经 MythicMobs API 生成 MM 实体),
         // MM 的 RandomSpawner 表达不了干灌木限定/±5 偏移/20% 成双/动态上限等细节
         spawner = new TumbleweedSpawner(this);
@@ -153,35 +144,30 @@ public class TumbleweedPlugin extends JavaPlugin {
 
     /**
      * 将 jar 内嵌的 MythicMobs 配置与 ModelEngine 蓝图导出到服务器插件目录。
-     * 返回 true 表示有文件被实际导出 (首次安装),需要触发 MM reload。
+     * 首次安装后需手动执行 /mm reload 使 Tumbleweed mob 类型生效。
      */
-    private boolean exportResources() {
-        boolean any = false;
-        any |= export("/mythicmobs/Mobs/Tumbleweed.yml", "plugins/MythicMobs/Mobs/Tumbleweed.yml");
-        any |= export("/mythicmobs/Mobs/Skeleton.yml", "plugins/MythicMobs/Mobs/Skeleton.yml");
+    private void exportResources() {
+        export("/mythicmobs/Mobs/Tumbleweed.yml", "plugins/MythicMobs/Mobs/Tumbleweed.yml");
+        export("/mythicmobs/Mobs/Skeleton.yml", "plugins/MythicMobs/Mobs/Skeleton.yml");
         export("/modelengine/blueprints/tumbleweed.bbmodel", "plugins/ModelEngine/blueprints/tumbleweed.bbmodel");
         export("/modelengine/textures/tumbleweed.png", "plugins/ModelEngine/textures/tumbleweed.png");
-        return any;
     }
 
-    /** 导出单个资源,返回 true 表示实际写入了文件。 */
-    private boolean export(String resourcePath, String targetRelative) {
+    private void export(String resourcePath, String targetRelative) {
         Path target = new File(targetRelative).toPath();
         if (Files.exists(target)) {
-            return false;
+            return;
         }
         try (InputStream in = getResource(resourcePath)) {
             if (in == null) {
                 getLogger().warning("资源缺失: " + resourcePath);
-                return false;
+                return;
             }
             Files.createDirectories(target.getParent());
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
             getLogger().info("已导出资源: " + target);
-            return true;
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "导出资源失败: " + resourcePath, e);
-            return false;
         }
     }
 
