@@ -113,8 +113,11 @@ public final class ModelController {
 
         @Override
         public void accept(ModeledEntity modeledEntity) {
-            // destroy 后的残留窗口:回调仍在跑但模型已拆除,直接跳过
-            if (modeledEntity.isDestroyed()) {
+            // 实体死亡但清理未及时执行时,立即销毁模型避免残留
+            if (tw.entity() == null || !tw.entity().isValid() || tw.entity().isDead()) {
+                if (!modeledEntity.isDestroyed()) {
+                    modeledEntity.destroy();
+                }
                 return;
             }
             if (root == null) {
@@ -125,6 +128,8 @@ public final class ModelController {
                 if (root == null) {
                     return; // 骨骼尚未生成,下个 tick 重试
                 }
+                // ME 默认 hasGlobalRotation=false,需开启才能让 leftQuaternion 生效于渲染
+                root.setHasGlobalRotation(true);
             }
             try {
                 float rx = tw.renderRotX, ry = tw.renderRotY, rz = tw.renderRotZ, rw = tw.renderRotW;

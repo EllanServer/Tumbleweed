@@ -5,9 +5,11 @@ import io.lumine.mythic.bukkit.events.MythicMobSpawnEvent;
 import net.tumbleweed.paper.Tumbleweed;
 import net.tumbleweed.paper.TumbleweedManager;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDeathEvent;
 
 /**
  * 接入 MythicMobs 生命周期:
@@ -58,5 +60,18 @@ public class MythicListener implements Listener {
             manager.remove(tw);
         }
         // 打碎战利品由 Tumbleweed.yml 的 Drops 配置负责 (MM 死亡结算),插件不写代码
+    }
+
+    /** Bukkit 兜底:MM 事件未触发时(如插件卸载/异常路径)也能清理模型与实体。 */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onBukkitDeath(EntityDeathEvent event) {
+        Entity e = event.getEntity();
+        if (!(e instanceof LivingEntity)) {
+            return;
+        }
+        Tumbleweed tw = manager.get(e);
+        if (tw != null) {
+            manager.remove(tw);
+        }
     }
 }

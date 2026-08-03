@@ -147,8 +147,8 @@ public class TumbleweedPlugin extends JavaPlugin {
      * 首次安装后需手动执行 /mm reload 使 Tumbleweed mob 类型生效。
      */
     private void exportResources() {
-        export("mythicmobs/Mobs/Tumbleweed.yml", "plugins/MythicMobs/mobs/Tumbleweed.yml");
-        export("mythicmobs/Mobs/Skeleton.yml", "plugins/MythicMobs/mobs/Skeleton.yml");
+        export("mythicmobs/mobs/Tumbleweed.yml", "plugins/MythicMobs/mobs/Tumbleweed.yml");
+        export("mythicmobs/mobs/Skeleton.yml", "plugins/MythicMobs/mobs/Skeleton.yml");
         export("modelengine/blueprints/tumbleweed.bbmodel", "plugins/ModelEngine/blueprints/tumbleweed.bbmodel");
         export("modelengine/textures/tumbleweed.png", "plugins/ModelEngine/textures/tumbleweed.png");
     }

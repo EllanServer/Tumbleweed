@@ -22,11 +22,13 @@ Tumbleweed:
     ApplyInvisibility: true
     NoDamageTicks: 1
   DamageModifiers:
-  - INVULNERABLE_FALL: 1
-  - INVULNERABLE_FIRE: 1
-  - INVULNERABLE_LAVA: 1
-  - INVULNERABLE_DROWNING: 1
-  - INVULNERABLE_EXPLOSION: 1
+  - ENTITY_ATTACK 999
+  - PROJECTILE 999
+  - FALL 0
+  - FIRE 0
+  - LAVA 0
+  - DROWNING 0
+  - EXPLOSION 0
   Skills:
   - skill:TumbleweedTrample ~onTimer:10 chance=0.7
   Drops:
