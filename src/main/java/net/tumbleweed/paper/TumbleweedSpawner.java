@@ -11,6 +11,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.BoundingBox;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -125,6 +126,8 @@ public class TumbleweedSpawner implements Runnable {
         int current = plugin.tumbleweedManager().countInWorld(world);
         int max = (int) Math.ceil(plugin.pluginConfig().spawnerMaxPerPlayer() * chunkList.size()
                 / (double) MOB_COUNT_DIV);
+        int dryBushHits = 0;
+        int spawned = 0;
 
         Location worldSpawn = world.getSpawnLocation();
         double spawnX = worldSpawn.getX();
@@ -147,6 +150,7 @@ public class TumbleweedSpawner implements Runnable {
             if (spawner == null) {
                 continue;
             }
+            dryBushHits++;
 
             // 原版 packSize = 1 + (20% ? 1 : 0)
             int packSize = 1 + (random.nextFloat() < PACK_DOUBLE_CHANCE ? 1 : 0);
@@ -176,11 +180,16 @@ public class TumbleweedSpawner implements Runnable {
                         x + 0.5, y + 0.5 + 0.5 * random.nextDouble(), z + 0.5)) {
                     current++;
                     packSpawned++;
+                    spawned++;
                     if (packSpawned == packSize) {
                         break;
                     }
                 }
             }
+        }
+        if (plugin.pluginConfig().debug()) {
+            plugin.getLogger().info("[spawner] 世界=" + world.getName() + " 候选区块=" + chunkList.size()
+                    + " 干灌木命中=" + dryBushHits + " 生成=" + spawned + " (上限 max=" + max + ")");
         }
     }
 
@@ -207,18 +216,17 @@ public class TumbleweedSpawner implements Runnable {
         return null;
     }
 
-    /** 原版 hasNearbyAlivePlayer (球形距离, 含 y)。只检查玩家,不遍历所有实体。 */
+    /** 原版 Level.hasNearbyAlivePlayer:玩家 AABB 与范围盒相交即判定 (非球形中心距)。
+     * 每 10 秒调用,遍历玩家数量级极小,无需缓存。 */
     private boolean hasPlayerNearby(World world, int x, int y, int z, double radius) {
-        double radiusSq = radius * radius;
+        BoundingBox range = new BoundingBox(
+                x - radius, y - radius, z - radius,
+                x + radius, y + radius, z + radius);
         for (Player p : world.getPlayers()) {
             if (p.isDead()) {
                 continue;
             }
-            Location pl = p.getLocation();
-            double dx = pl.getX() - x;
-            double dy = pl.getY() - y;
-            double dz = pl.getZ() - z;
-            if (dx * dx + dy * dy + dz * dz < radiusSq) {
+            if (p.getBoundingBox().overlaps(range)) {
                 return true;
             }
         }

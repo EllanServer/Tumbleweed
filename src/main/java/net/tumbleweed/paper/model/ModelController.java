@@ -70,6 +70,12 @@ public final class ModelController {
             ModeledEntity modeled = ModelEngineAPI.createModeledEntity(entity);
             ActiveModel model = ModelEngineAPI.createActiveModel(MODEL_ID);
             if (model == null) {
+                // 蓝图缺失/未加载: 此时 base 实体隐身 (ApplyInvisibility), 玩家完全看不见 ——
+                // 曾是无日志静默盲区, 特此记录, 便于排查"生成了但看不见"
+                java.util.logging.Logger.getLogger("Tumbleweed-ME")
+                        .warning("模型蓝图未加载: " + MODEL_ID
+                                + " (检查 plugins/ModelEngine/blueprints/" + MODEL_ID + ".bbmodel 是否存在,"
+                                + " 并确认 /me reload 完成)");
                 return;
             }
             modeled.addModel(model, true);

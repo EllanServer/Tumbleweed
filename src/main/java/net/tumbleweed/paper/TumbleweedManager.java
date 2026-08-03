@@ -241,6 +241,8 @@ public class TumbleweedManager {
             return false;
         }
         if (mob == null || mob.getEntity() == null) {
+            // MM mob 未加载 (mob 名 "Tumbleweed" 未注册) 或生成返回空 —— 记录以便排查
+            plugin.getLogger().warning("MythicMobs 生成风滚草返回空 (mob 是否已加载? 请检查 /mm reload 输出中 Tumbleweed 相关错误)");
             return false;
         }
         Entity entity = mob.getEntity().getBukkitEntity();
@@ -249,6 +251,9 @@ public class TumbleweedManager {
         }
         // 原版 isNotColliding: 生成点两格 (实体占位) 必须无碰撞方块
         if (!isSpawnClear(world, x, y, z)) {
+            if (plugin.pluginConfig().debug()) {
+                plugin.getLogger().info("[spawner] 生成点阻塞, 位置=(" + x + "," + y + "," + z + ")");
+            }
             entity.remove();
             return false;
         }

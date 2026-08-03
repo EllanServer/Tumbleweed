@@ -35,6 +35,9 @@ public class PluginConfig {
     /** 自然生成:每个候选区块的生成概率 (原版 spawnChance: 0.5)。 */
     private double spawnerChance;
 
+    /** 调试日志开关 (生成器诊断 / 模型 attach 失败详情)。 */
+    private boolean debug;
+
     /** 自然生成:每玩家数量上限 (原版 maxPerPlayer: 8,按候选区比例)。 */
     private int spawnerMaxPerPlayer;
 
@@ -54,6 +57,7 @@ public class PluginConfig {
         spawnerEnabled = cfg.getBoolean("spawner.enabled", true);
         spawnerChance = cfg.getDouble("spawner.chance", 0.5);
         spawnerMaxPerPlayer = Math.max(1, cfg.getInt("spawner.max-per-player", 8));
+        debug = cfg.getBoolean("debug", false);
     }
 
     public double windMultiplier() {
@@ -86,5 +90,9 @@ public class PluginConfig {
 
     public int spawnerMaxPerPlayer() {
         return spawnerMaxPerPlayer;
+    }
+
+    public boolean debug() {
+        return debug;
     }
 }
