@@ -5,7 +5,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Minecart;
@@ -55,6 +54,7 @@ public class Tumbleweed {
     private boolean fading;
     private boolean persistent;
     private int physicsCycle; // 降频调度计数 (距玩家过远时每 N tick 跑一次物理)
+    private int tickIndex = -1; // TumbleweedManager.ticking 列表中的索引 (标记删除用)
 
     // 物理状态
     private final Vector motion = new Vector();
@@ -65,14 +65,29 @@ public class Tumbleweed {
 
     // 旋转状态 (原版客户端逻辑,在服务端计算后交给 ModelEngine)
     private final RotationState rotation;
-    private final float rotOffsetX;
-    private final float rotOffsetY;
-    private final float rotOffsetZ;
 
     private final Random random = new Random();
 
     // 性能:复用临时对象,避免每 tick 分配
     private final Quaternionf rotTemp = new Quaternionf();
+    private final Location cachedLoc;          // 复用 Location,避免每 tick getLocation() 分配新对象
+    private final BoundingBox moveBB;          // moveEntity 复用 BB
+    // Chunk 直读缓存 (借鉴 CE EntityCulling 的 lastVisitChunk 思路:命中上次 chunk 免 hash 查找)
+    private org.bukkit.ChunkSnapshot lastSnapshot;
+    private int lastSnapshotX = Integer.MIN_VALUE;
+    private int lastSnapshotZ = Integer.MIN_VALUE;
+    // CE 可见性判定用的 AABB 快照 (主线程物理后写入,CE 异步线程只读)。
+    // 用 6 个 public volatile 字段而非 BoundingBox:跨包访问 + 零分配 + 可见性正确,
+    // 使 Tumbleweed 核心类保持零 CE 依赖 (Cullable 适配在 CullingIntegration 隔离层)。
+    public volatile double cullMinX, cullMinY, cullMinZ, cullMaxX, cullMaxY, cullMaxZ;
+
+    // ModelEngine 渲染快照 (主线程物理 tick 末尾写入,ME 异步线程池 PRE_MODEL_TICK 阶段只读)。
+    // ME R4 的模型更新 (ModelUpdaters) 全部在 work-stealing 线程池执行,主线程直接写
+    // SafeTransform 字段存在跨线程竞争 (SafeTransform 写侧无 release fence),因此 transform
+    // 写入必须发生在 ME 异步线程,这里只提供 volatile 快照中转 (同理零分配 + 可见性正确)。
+    // 旋转 = RotationState.quat 的四元数分量;scale = renderScaleX/Y/Z 乘淡出 alpha 的最终值。
+    public volatile float renderRotX, renderRotY, renderRotZ, renderRotW;
+    public volatile float renderScaleX, renderScaleY, renderScaleZ;
 
     public Tumbleweed(Entity entity, int size) {
         this.entity = entity;
@@ -85,9 +100,12 @@ public class Tumbleweed {
         this.windModZ = 1.0 + 0.2 - 0.4 * seeded.nextDouble();
         this.lifetime = 2 * 60 * 20;
 
-        this.rotOffsetX = 360f * random.nextFloat();
-        this.rotOffsetY = 360f * random.nextFloat();
-        this.rotOffsetZ = 360f * random.nextFloat();
+        // 预分配复用对象
+        this.cachedLoc = entity.getLocation();
+        double w = mcSize();
+        this.moveBB = new BoundingBox(0, 0, 0, 0, 0, 0);
+        updateCullAabb();
+        updateRenderSnapshot(); // 初始化渲染快照 (模型 attach 前即有有效值)
     }
 
     /** 每个 tick 调用一次,驱动物理与旋转。 */
@@ -109,6 +127,7 @@ public class Tumbleweed {
 
         prevMotion.copy(motion);
         moveEntity();
+        updateCullAabb();
 
         // 风力 (原版: windX=0.08, windZ=-0.08,每 2 分钟随机翻转;windModX/Z 独立)
         // windMultiplier 为插件配置倍率 (原版无,默认 1.0)
@@ -176,8 +195,25 @@ public class Tumbleweed {
             }
         }
 
+        // 物理与旋转完成后写渲染快照,供 ModelEngine 异步线程同步 (降频跳过的 tick 不写,
+        // 快照不变,ME 侧惰性检测自然跳过,行为与原先降频时跳过 sync 一致)
+        updateRenderSnapshot();
+
         // 践踏农田已由 MythicMobs 配置实现 (Tumbleweed.yml 的 TumbleweedTrample 技能)
         // 脱管检查 (玩家离开 110 格) 由 TumbleweedManager 统一处理,使用缓存的最近玩家距离
+    }
+
+    /** 物理 tick 末尾调用:把旋转/缩放/淡出写入 volatile 渲染快照。 */
+    public void updateRenderSnapshot() {
+        Quaternionf q = rotation.quat;
+        renderRotX = q.x;
+        renderRotY = q.y;
+        renderRotZ = q.z;
+        renderRotW = q.w;
+        float fade = alpha();
+        renderScaleX = renderScaleX() * fade;
+        renderScaleY = renderScaleY() * fade;
+        renderScaleZ = renderScaleZ() * fade;
     }
 
     /** 降频跳过物理 tick 时,仅推进寿命,保持风滚草按真实时间老化。 */
@@ -196,46 +232,59 @@ public class Tumbleweed {
 
     /** 逐轴 AABB 方块碰撞移动 (模拟原版 move(MoverType.SELF, ...))。 */
     private void moveEntity() {
-        Location loc = entity.getLocation();
-        double x = loc.getX();
-        double y = loc.getY();
-        double z = loc.getZ();
+        // 复用 cachedLoc,避免每 tick 分配新 Location
+        entity.getLocation(cachedLoc);
+        double x = cachedLoc.getX();
+        double y = cachedLoc.getY();
+        double z = cachedLoc.getZ();
 
         double width = mcSize();
-        BoundingBox bb = new BoundingBox(x - width / 2, y, z - width / 2, x + width / 2, y + width, z + width / 2);
+        double halfW = width / 2;
 
         horizontalCollision = false;
         onGround = false;
 
-        // X 轴
-        if (motion.getX() != 0 && collidesWithBlocks(entity.getWorld(), bb.shift(motion.getX(), 0, 0))) {
-            horizontalCollision = true;
-            motion.setX(0);
-        } else {
-            x += motion.getX();
+        // X 轴 — 复用 moveBB
+        if (motion.getX() != 0) {
+            moveBB.resize(x - halfW + motion.getX(), y, z - halfW,
+                    x + halfW + motion.getX(), y + width, z + halfW);
+            if (collidesWithBlocks(entity.getWorld(), moveBB)) {
+                horizontalCollision = true;
+                motion.setX(0);
+            } else {
+                x += motion.getX();
+            }
         }
         // Z 轴
-        if (motion.getZ() != 0 && collidesWithBlocks(entity.getWorld(), bb.shift(0, 0, motion.getZ()))) {
-            horizontalCollision = true;
-            motion.setZ(0);
-        } else {
-            z += motion.getZ();
+        if (motion.getZ() != 0) {
+            moveBB.resize(x - halfW, y, z - halfW + motion.getZ(),
+                    x + halfW, y + width, z + halfW + motion.getZ());
+            if (collidesWithBlocks(entity.getWorld(), moveBB)) {
+                horizontalCollision = true;
+                motion.setZ(0);
+            } else {
+                z += motion.getZ();
+            }
         }
         // Y 轴
-        if (motion.getY() != 0 && collidesWithBlocks(entity.getWorld(), bb.shift(0, motion.getY(), 0))) {
-            if (motion.getY() < 0) {
-                onGround = true;
+        if (motion.getY() != 0) {
+            moveBB.resize(x - halfW, y + motion.getY(), z - halfW,
+                    x + halfW, y + width + motion.getY(), z + halfW);
+            if (collidesWithBlocks(entity.getWorld(), moveBB)) {
+                if (motion.getY() < 0) {
+                    onGround = true;
+                }
+                motion.setY(0);
+            } else {
+                y += motion.getY();
             }
-            motion.setY(0);
-        } else {
-            y += motion.getY();
         }
 
-        // 复用读取时的 Location,避免每 tick 额外分配
-        loc.setX(x);
-        loc.setY(y);
-        loc.setZ(z);
-        entity.teleport(loc);
+        // 复用 cachedLoc 写回
+        cachedLoc.setX(x);
+        cachedLoc.setY(y);
+        cachedLoc.setZ(z);
+        entity.teleport(cachedLoc);
     }
 
     private boolean collidesWithBlocks(World world, BoundingBox bb) {
@@ -245,27 +294,59 @@ public class Tumbleweed {
         int maxY = (int) Math.floor(bb.getMaxY());
         int minZ = (int) Math.floor(bb.getMinZ());
         int maxZ = (int) Math.floor(bb.getMaxZ());
-        for (int x = minX; x <= maxX; x++) {
-            for (int y = minY; y <= maxY; y++) {
-                for (int z = minZ; z <= maxZ; z++) {
-                    Block block = world.getBlockAt(x, y, z);
-                    Material type = block.getType();
+        int worldMinY = world.getMinHeight();
+        int worldMaxY = world.getMaxHeight();
+        for (int bx = minX; bx <= maxX; bx++) {
+            for (int by = minY; by <= maxY; by++) {
+                // 世界高度范围外视为空气 (虚空/天空),避免越界查询
+                if (by < worldMinY || by >= worldMaxY) {
+                    continue;
+                }
+                for (int bz = minZ; bz <= maxZ; bz++) {
+                    // Chunk 直读 (借鉴 CE isOccluding 思路):跳过 getBlockAt 的 Block 对象分配
+                    Material type = blockTypeAt(world, bx, by, bz);
                     if (type.isAir() || type == Material.WATER || type == Material.BUBBLE_COLUMN) {
                         continue;
                     }
-                    BlockData data = block.getBlockData();
-                    if (!data.getMaterial().isCollidable()) {
+                    if (!type.isCollidable()) {
                         continue;
                     }
-                    // 精确 AABB 相交检测 (细方块如花/草不影响)
-                    BoundingBox blockBb = BoundingBox.of(block);
-                    if (blockBb.overlaps(bb)) {
+                    // 快路径:occluding 方块 = 完整 1×1×1 碰撞,BB 已覆盖该格,必然碰撞
+                    if (type.isOccluding()) {
+                        return true;
+                    }
+                    // 非完整方块 (台阶/栅栏等):精确 AABB 相交检测 (慢路径,少量)
+                    Block block = blockAt(world, bx, by, bz);
+                    if (BoundingBox.of(block).overlaps(bb)) {
                         return true;
                     }
                 }
             }
         }
         return false;
+    }
+
+    /**
+     * 按全局坐标直读方块材质。思路借鉴 CE 的 isOccluding (直读 chunk 数据,避免 getBlockAt 创建 Block 对象):
+     * Paper 的 ChunkSnapshot(false,false,false,false) 只是轻量包装,内部直接引用 palette 数组
+     * (无数据拷贝),getBlockType 为纯数组读取;命中 lastSnapshot 缓存免 chunk 查找。
+     */
+    private Material blockTypeAt(World world, int x, int y, int z) {
+        int cx = x >> 4;
+        int cz = z >> 4;
+        org.bukkit.ChunkSnapshot snap = lastSnapshot;
+        if (snap == null || cx != lastSnapshotX || cz != lastSnapshotZ) {
+            snap = world.getChunkAt(cx, cz).getChunkSnapshot(false, false, false, false);
+            lastSnapshot = snap;
+            lastSnapshotX = cx;
+            lastSnapshotZ = cz;
+        }
+        return snap.getBlockType(x & 15, y, z & 15);
+    }
+
+    /** 按全局坐标取 Block (仅慢路径:非完整碰撞方块使用)。 */
+    private Block blockAt(World world, int x, int y, int z) {
+        return world.getChunkAt(x >> 4, z >> 4).getBlock(x & 15, y, z & 15);
     }
 
     /** 原版 tickClient 旋转:落地压扁为新版本特性;旋转按 master 1.8.9 原样复刻。 */
@@ -294,12 +375,12 @@ public class Tumbleweed {
         }
 
         double width = mcSize();
-        // 原版 AABB 仅 x/z 扩展 0.2,y 不扩展;以 AABB 中心为探测中心避免头顶实体被误推
-        Location center = entity.getLocation().add(0, width / 2, 0);
+        // 复用 cachedLoc 避免新建 Location;手动偏移 y 到中心
+        entity.getLocation(cachedLoc);
+        cachedLoc.setY(cachedLoc.getY() + width / 2);
         double range = width / 2 + 0.2;
 
-        // 26.2: getNearbyEntities(Location, dx, dy, dz, Predicate) 返回 Collection
-        Collection<Entity> nearby = entity.getWorld().getNearbyEntities(center, range, range, range,
+        Collection<Entity> nearby = entity.getWorld().getNearbyEntities(cachedLoc, range, range, range,
                 e -> e != entity && !manager.isTumbleweed(e));
 
         for (Entity e : nearby) {
@@ -308,7 +389,9 @@ public class Tumbleweed {
                     && entity.getVehicle() == null
                     && mc.getVelocity().lengthSquared() > 0.01) {
                 mc.addPassenger(entity);
-                motion.add(new Vector(0, 0.25, 0));
+                Vector vel = entity.getVelocity();
+                vel.setY(vel.getY() + 0.25);
+                entity.setVelocity(vel);
                 continue;
             }
 
@@ -319,20 +402,41 @@ public class Tumbleweed {
                 continue;
             }
             if (e instanceof LivingEntity living && !(e instanceof Player)) {
-                Vector push = living.getVelocity().add(new Vector(pushX, 0.15, pushZ));
+                Vector push = living.getVelocity();
+                push.setX(push.getX() + pushX);
+                push.setY(push.getY() + 0.15);
+                push.setZ(push.getZ() + pushZ);
                 living.setVelocity(push);
             }
         }
     }
 
     public boolean isInWater() {
-        Material type = entity.getLocation().getBlock().getType();
+        entity.getLocation(cachedLoc);
+        int y = cachedLoc.getBlockY();
+        if (y < 0 || y >= entity.getWorld().getMaxHeight()) {
+            return false;
+        }
+        Material type = blockTypeAt(entity.getWorld(),
+                cachedLoc.getBlockX(), y, cachedLoc.getBlockZ());
         return type == Material.WATER || type == Material.BUBBLE_COLUMN;
     }
 
     /** 原版 getDimensions:碰撞与渲染尺寸。 */
     public double mcSize() {
         return BASE_SIZE + size * (1 / 8d);
+    }
+
+    /** 更新 CE 判定用的 AABB 快照 (主线程物理后调用;cachedLoc 此时为最新位置)。 */
+    public void updateCullAabb() {
+        double w = mcSize() * 0.5;
+        double h = mcSize();
+        cullMinX = cachedLoc.getX() - w;
+        cullMinY = cachedLoc.getY();
+        cullMinZ = cachedLoc.getZ() - w;
+        cullMaxX = cachedLoc.getX() + w;
+        cullMaxY = cachedLoc.getY() + h;
+        cullMaxZ = cachedLoc.getZ() + w;
     }
 
     /** 原版渲染: 1.0 + size/8。 */
@@ -376,6 +480,14 @@ public class Tumbleweed {
         return persistent;
     }
 
+    public int tickIndex() {
+        return tickIndex;
+    }
+
+    public void setTickIndex(int tickIndex) {
+        this.tickIndex = tickIndex;
+    }
+
     /** 渲染压扁:scaleY = stretch,scaleXZ = 2 - stretch (原版 render 逻辑)。 */
     public float renderScaleX() {
         return modelScale() * (2f - rotation.stretch);
@@ -387,17 +499,5 @@ public class Tumbleweed {
 
     public float renderScaleZ() {
         return modelScale() * (2f - rotation.stretch);
-    }
-
-    public float rotOffsetX() {
-        return rotOffsetX;
-    }
-
-    public float rotOffsetY() {
-        return rotOffsetY;
-    }
-
-    public float rotOffsetZ() {
-        return rotOffsetZ;
     }
 }

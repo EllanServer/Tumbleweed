@@ -29,9 +29,6 @@ public class PluginConfig {
     /** 是否使用 CraftEngine 的视锥+遮挡判定优化同步 (需安装 CraftEngine)。 */
     private boolean cullingEnabled;
 
-    /** CE 判定快筛:距玩家不超过该距离 (格) 的风滚草始终全速。 */
-    private int cullingNearDistance;
-
     /** 自然生成 (原版 Spawner 逻辑,插件实现):是否启用。 */
     private boolean spawnerEnabled;
 
@@ -54,7 +51,6 @@ public class PluginConfig {
         distantPhysicsDistance = Math.max(0, cfg.getInt("performance.distant-physics-distance", 96));
         distantPhysicsInterval = Math.max(1, cfg.getInt("performance.distant-physics-interval", 4));
         cullingEnabled = cfg.getBoolean("performance.culling-enabled", true);
-        cullingNearDistance = Math.max(1, cfg.getInt("performance.culling-near-distance", 32));
         spawnerEnabled = cfg.getBoolean("spawner.enabled", true);
         spawnerChance = cfg.getDouble("spawner.chance", 0.5);
         spawnerMaxPerPlayer = Math.max(1, cfg.getInt("spawner.max-per-player", 8));
@@ -78,10 +74,6 @@ public class PluginConfig {
 
     public boolean cullingEnabled() {
         return cullingEnabled;
-    }
-
-    public int cullingNearDistance() {
-        return cullingNearDistance;
     }
 
     public boolean spawnerEnabled() {

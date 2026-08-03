@@ -9,11 +9,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.util.Vector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -87,6 +84,7 @@ public class TumbleweedSpawner implements Runnable {
     /** 原版 trySpawn:收集合格候选区块 -> 打乱 -> 按上限与概率逐个生成。 */
     private void trySpawn(World world) {
         Set<Long> candidates = new HashSet<>();
+        Location borderCheck = new Location(world, 0, 0, 0); // 复用,避免每区块 new Location
         for (Player player : world.getPlayers()) {
             if (player.getGameMode() == org.bukkit.GameMode.SPECTATOR) {
                 continue;
@@ -104,7 +102,9 @@ public class TumbleweedSpawner implements Runnable {
                     if (candidates.contains(key(chunkX, chunkZ))) {
                         continue;
                     }
-                    if (!world.getWorldBorder().isInside(new Location(world, chunkX * 16 + 8, 0, chunkZ * 16 + 8))) {
+                    borderCheck.setX(chunkX * 16 + 8);
+                    borderCheck.setZ(chunkZ * 16 + 8);
+                    if (!world.getWorldBorder().isInside(borderCheck)) {
                         continue;
                     }
                     // 区块中心群系白名单 (原版 getBiome(chunk 中心, y=0))
@@ -127,6 +127,10 @@ public class TumbleweedSpawner implements Runnable {
                 / (double) MOB_COUNT_DIV);
 
         Location worldSpawn = world.getSpawnLocation();
+        double spawnX = worldSpawn.getX();
+        double spawnY = worldSpawn.getY();
+        double spawnZ = worldSpawn.getZ();
+        double spawnProtSq = (double) SPAWN_PROTECTION * SPAWN_PROTECTION;
         double spawnChance = plugin.pluginConfig().spawnerChance();
 
         for (long key : chunkList) {
@@ -162,7 +166,8 @@ public class TumbleweedSpawner implements Runnable {
                     continue;
                 }
                 // 世界出生点 24 格外 (原版 worldSpawn.distSqr < 24*24)
-                if (worldSpawn.toVector().distanceSquared(new Vector(x, y, z)) < SPAWN_PROTECTION * SPAWN_PROTECTION) {
+                double dsx = x - spawnX, dsy = y - spawnY, dsz = z - spawnZ;
+                if (dsx * dsx + dsy * dsy + dsz * dsz < spawnProtSq) {
                     continue;
                 }
 
@@ -202,11 +207,18 @@ public class TumbleweedSpawner implements Runnable {
         return null;
     }
 
-    /** 原版 hasNearbyAlivePlayer (球形距离, 含 y)。 */
+    /** 原版 hasNearbyAlivePlayer (球形距离, 含 y)。只检查玩家,不遍历所有实体。 */
     private boolean hasPlayerNearby(World world, int x, int y, int z, double radius) {
-        Location center = new Location(world, x, y, z);
-        for (Entity e : world.getNearbyEntities(center, radius, radius, radius)) {
-            if (e instanceof Player p && !p.isDead()) {
+        double radiusSq = radius * radius;
+        for (Player p : world.getPlayers()) {
+            if (p.isDead()) {
+                continue;
+            }
+            Location pl = p.getLocation();
+            double dx = pl.getX() - x;
+            double dy = pl.getY() - y;
+            double dz = pl.getZ() - z;
+            if (dx * dx + dy * dy + dz * dz < radiusSq) {
                 return true;
             }
         }

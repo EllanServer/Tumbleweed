@@ -19,6 +19,7 @@ public class MythicListener implements Listener {
     private static final String MOB_ID = "Tumbleweed";
 
     private final TumbleweedManager manager;
+    private final java.util.Random random = new java.util.Random();
 
     public MythicListener(TumbleweedManager manager) {
         this.manager = manager;
@@ -35,7 +36,7 @@ public class MythicListener implements Listener {
         }
 
         // 随机尺寸 1~4 (原版 entityInit 随机;mcSize = 0.75 + size/8)
-        Tumbleweed tw = new Tumbleweed(entity, 1 + new java.util.Random().nextInt(4));
+        Tumbleweed tw = new Tumbleweed(entity, 1 + random.nextInt(4));
         tw.setPersistent(false);
 
         // NoAI,物理完全由插件接管;关闭实体碰撞 (原版 getCollisionBox=null,不阻挡实体)
@@ -56,5 +57,6 @@ public class MythicListener implements Listener {
         if (tw != null) {
             manager.remove(tw);
         }
+        // 打碎战利品由 Tumbleweed.yml 的 Drops 配置负责 (MM 死亡结算),插件不写代码
     }
 }
