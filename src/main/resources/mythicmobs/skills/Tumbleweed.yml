@@ -12,7 +12,8 @@ TumbleweedTrample:
   Skills:
   # setblock 官方参数只有 material/physics (wiki setblocktype), direction 不存在
   - setblock{m=DIRT} @TriggerLocation
-  - sound{s=BLOCK_GRAVEL_BREAK;volume=0.8;pitch=0.9} @self
+  # MM5 音效 s= 走 adventure Key 解析必须小写 (大写抛 InvalidKeyException)
+  - sound{s=block.gravel.break;volume=0.8;pitch=0.9} @self
 
 # --- 骷髅射击风滚草 ---
 ShootTumbleweed:
@@ -21,6 +22,10 @@ ShootTumbleweed:
   # 不能写在技能级 Conditions —— 技能由骷髅 ~onTimer 触发时 target=caster(骷髅),
   # distance 会永远不满足 (官方 Distance.md: caster 与 target 的距离)
   # 目标器条件作用对象 = 每个候选风滚草 (官方 Targeters.md targetconditions)
+  # 单行多条件格式: conditions=[  两个空格  - 条件 true  两个空格  - 条件 true 空格 ]
+  # (官方 Inline-Conditions.md: 双空格 + "- " 前缀是必须的)
   - look
   - projectile{bulletType=ARROW;velocity=32} @MobsInRadius{r=18;limit=1;types=Tumbleweed;conditions=[  - distance{a=9;b=18} true  - lineofsight true ]}
-  - sound{s=ENTITY_SKELETON_SHOOT;volume=1;pitch=0.8-1.2} @self
+  # MM5 音效 s= 走 adventure Key 解析必须小写 (大写 ENTITY_SKELETON_SHOOT 会抛
+  # InvalidKeyException 并刷屏; pitch 区间写法 0.8-1.2 是 MM5 合法范围语法)
+  - sound{s=entity.skeleton.shoot;volume=1;pitch=0.8-1.2} @self

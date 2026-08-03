@@ -41,11 +41,8 @@ public class MythicListener implements Listener {
         Tumbleweed tw = new Tumbleweed(entity, random.nextInt(5) - 2);
         tw.setPersistent(false);
 
-        // NoAI,物理完全由插件接管;关闭实体碰撞 (原版 getCollisionBox=null,不阻挡实体)
-        if (entity instanceof org.bukkit.entity.LivingEntity living) {
-            living.setAI(false);
-            living.setCollidable(false);
-        }
+        // NoAI / Collidable 由 MM 配置驱动 (Tumbleweed.yml Options.NoAI / Options.Collidable),
+        // MM spawnMob 时自动应用, 这里不再用代码重复设置
 
         manager.register(tw);
     }

@@ -257,10 +257,8 @@ public class TumbleweedManager {
             entity.remove();
             return false;
         }
-        if (entity instanceof org.bukkit.entity.LivingEntity living) {
-            living.setAI(false);
-            living.setCollidable(false);
-        }
+        // NoAI / Collidable 已由 MM 配置驱动 (Tumbleweed.yml Options.NoAI / Options.Collidable,
+        // spawnMob 时自动应用), 此处不再重复设置
         Tumbleweed tw = new Tumbleweed(entity, random.nextInt(5) - 2); // 原版: size ∈ [-2, 2]
         tw.setPersistent(false);
         register(tw);

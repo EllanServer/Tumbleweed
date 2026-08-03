@@ -6,6 +6,17 @@
 #   - 骷髅系击杀额外掉落 1 张唱片 (原版 creeper_drop_music_discs 池,
 #     12 张各 1/12; MM dropitem 独立判定,用 chance=0.0833 近似)
 #   - 死亡音效: 原版 playSound(grass break, (vol+1)/2=0.75, pitch*0.8)
+#
+#  MM5 属性位置注意 (对照官方 wiki Mobs/Options.md):
+#   - NoAI / Silent / PreventSunburn / PreventOtherDrops / PreventItemPickup /
+#     PreventMobKillDrops / PreventRandomEquipment / Collidable / Invisible /
+#     Despawn / MovementSpeed / NoDamageTicks 全部在 Options: 下
+#   - MM5 没有 ApplyInvisibility / PreventInfection / PreventRandomTarget
+#     (MM4 残留键, 写了会被忽略); Invisible 替代 ApplyInvisibility
+#   - Despawn 用模式值 NEVER (插件全权管理 2 分钟寿命 + 160 格脱管)
+#   - MM5 音效 s= 参数走 adventure Key 解析, 必须小写
+#     (block.grass.break / entity.skeleton.shoot, 大写会抛 InvalidKeyException
+#     并把该 ActiveMob 从 MM 追踪移除, 导致后续死亡掉落清空失效)
 # ============================================================
 Tumbleweed:
   Type: PIG
@@ -13,19 +24,18 @@ Tumbleweed:
   Health: 1
   Damage: 0
   Armor: 0
-  NoAI: true
-  Silent: true
-  PreventSunburn: true
-  PreventOtherDrops: true
-  PreventItemPickup: true
-  PreventMobKillDrops: true
   Options:
-    Despawn: {F: 0, D: 0}
+    Despawn: NEVER
+    NoAI: true
+    Silent: true
+    PreventSunburn: true
+    PreventOtherDrops: true
+    PreventItemPickup: true
+    PreventMobKillDrops: true
     PreventRandomEquipment: true
-    PreventInfection: true
-    PreventRandomTarget: true
+    Collidable: false
+    Invisible: true
     MovementSpeed: 0
-    ApplyInvisibility: true
     NoDamageTicks: 1
   DamageModifiers:
   - ENTITY_ATTACK 999
@@ -42,8 +52,8 @@ Tumbleweed:
   # 与 onblock{FARMLAND} 组合仅在从空中落到农田上时判定;
   # 坠落过程约 2-3 次判定, chance=0.5 使总触发率 ≈64%-88%, 居中贴近原版 70%
   - skill:TumbleweedTrample ~onTimer:5 chance=0.5
-  # 死亡音效: 原版 grass break, 音量 0.75, 音调 0.8
-  - sound{s=BLOCK_GRASS_BREAK;volume=0.75;pitch=0.8} ~onDeath
+  # 死亡音效: 原版 grass break, 音量 0.75, 音调 0.8 (MM5 Key 必须小写)
+  - sound{s=block.grass.break;volume=0.75;pitch=0.8} ~onDeath
   # 骷髅系击杀: 原版额外掉落 1 张唱片 (12 选 1, MM 独立判定 chance=1/12 近似)
   # ~onDeath 触发器下 @trigger = 击杀者 (官方 Triggers/onDeath 文档);
   # entitytype 条件过滤骷髅系 (MM5 无 killeris 目标器/条件, 已核对 jar)
