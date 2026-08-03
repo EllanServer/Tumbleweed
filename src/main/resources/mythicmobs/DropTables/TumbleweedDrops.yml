@@ -7,9 +7,15 @@
 #   - rare (weight 4):      iron_ingot, gold_ingot
 #   - epic (weight 1):      name_tag, saddle, emerald, diamond
 #  总权重 142; 骷髅系击杀的唱片池见 mob 配置 Tumbleweed.yml
+#
+#  MM5 格式 (官方 ExampleDropTables.yml): 顶层 Drops + MinItems/MaxItems,
+#  行 = "类型 数量 权重" (权重按比例抽取, 与原版 rolls=1 权重池语义一致);
+#  旧版 MM4 的 Items/Rolls 字段在 MM5 已废弃 (报 "Drop type not found")
 # ============================================================
 TumbleweedDrops:
-  Items:
+  MinItems: 1
+  MaxItems: 1
+  Drops:
   - BONE 1 17
   - DEAD_BUSH 1 17
   - STRING 1 17
@@ -26,4 +32,3 @@ TumbleweedDrops:
   - SADDLE 1 1
   - EMERALD 1 1
   - DIAMOND 1 1
-  Rolls: 1

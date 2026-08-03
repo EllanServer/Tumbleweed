@@ -42,17 +42,21 @@ Tumbleweed:
   # 死亡音效: 原版 grass break, 音量 0.75, 音调 0.8
   - sound{s=BLOCK_GRASS_BREAK;volume=0.75;pitch=0.8} ~onDeath
   # 骷髅系击杀: 原版额外掉落 1 张唱片 (12 选 1, MM 独立判定 chance=1/12 近似)
-  - dropitem{item=MUSIC_DISC_13;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_CAT;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_BLOCKS;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_CHIRP;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_FAR;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_MALL;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_MELLOHI;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_STAL;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_STRAD;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_WARD;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_11;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
-  - dropitem{item=MUSIC_DISC_WAIT;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  # ~onDeath 触发器下 @trigger = 击杀者; entitytype 条件过滤骷髅系
+  # (MM5 无 killeris 目标器/条件, 旧写法 @killeris 报 Failed to load custom targeter)
+  - dropitem{item=MUSIC_DISC_13;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_CAT;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_BLOCKS;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_CHIRP;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_FAR;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_MALL;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_MELLOHI;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_STAL;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_STRAD;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_WARD;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_11;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
+  - dropitem{item=MUSIC_DISC_WAIT;amount=1} ~onDeath @trigger conditions=[entitytype{types=SKELETON,STRAY,BOGGED}] chance=0.0833
   Drops:
-  - table:TumbleweedDrops
+  # MM5 引用 DropTable 直接写表名 (官方 ExampleMobs.yml 格式);
+  # 旧写法 - table:xxx 被当 drop type 解析, 报 "Drop type not found"
+  - TumbleweedDrops

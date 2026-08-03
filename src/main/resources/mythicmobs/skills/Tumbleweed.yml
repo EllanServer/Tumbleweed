@@ -17,6 +17,8 @@ ShootTumbleweed:
   - distance{a=9;b=18}
   - lineofsight
   Skills:
+  # MobsInRadius 自带 types 参数按 MythicMob 类型过滤 (jar 内 MobsInRadiusTargeter),
+  # 无需 conditions=[mythicmobtype{...}] 二次判断
   - look
-  - projectile{projectile=ARROW;velocity=32;velocityMode=FORWARD;amount=1;power=1} @MobsInRadius{r=18;limit=1;conditions=[mythicmobtype{type=Tumbleweed}]}
+  - projectile{projectile=ARROW;velocity=32;velocityMode=FORWARD;amount=1;power=1} @MobsInRadius{r=18;limit=1;types=Tumbleweed}
   - sound{s=ENTITY_SKELETON_SHOOT;volume=1;pitch=0.8-1.2} @self
