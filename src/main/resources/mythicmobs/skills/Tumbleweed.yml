@@ -16,13 +16,11 @@ TumbleweedTrample:
 
 # --- 骷髅射击风滚草 ---
 ShootTumbleweed:
-  Conditions:
-  - distance{a=9;b=18}
-  - lineofsight
   Skills:
-  # MobsInRadius 自带 types 参数按 MythicMob 类型过滤 (官方 Targeters/MobsInRadius);
-  # projectile 官方参数 bulletType (旧名 projectile), velocity 单位 blocks/秒
-  # (原版箭速 ≈30 blocks/s), velocityMode/amount 参数不存在 (已核对 wiki)
+  # 注意: distance/lineofsight 必须写在目标器 conditions (targetconditions) 里,
+  # 不能写在技能级 Conditions —— 技能由骷髅 ~onTimer 触发时 target=caster(骷髅),
+  # distance 会永远不满足 (官方 Distance.md: caster 与 target 的距离)
+  # 目标器条件作用对象 = 每个候选风滚草 (官方 Targeters.md targetconditions)
   - look
-  - projectile{bulletType=ARROW;velocity=32} @MobsInRadius{r=18;limit=1;types=Tumbleweed}
+  - projectile{bulletType=ARROW;velocity=32} @MobsInRadius{r=18;limit=1;types=Tumbleweed;conditions=[  - distance{a=9;b=18} true  - lineofsight true ]}
   - sound{s=ENTITY_SKELETON_SHOOT;volume=1;pitch=0.8-1.2} @self
