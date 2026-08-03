@@ -1,26 +1,7 @@
 # ============================================================
 #  骷髅 - 覆盖原版骷髅 AI (配置化:骷髅射击风滚草)
 # ============================================================
-#  等效原版 ShootTumbleweed 目标:
-#   - 每 tick 0.3% 概率尝试  -> ~onTimer:20 + chance=0.06 (每 20 tick 6%)
-#   - 目标 9~18 格内、视线内  -> distance{a=9;b=18} + lineofsight 条件
-#   - 箭速 1.6 (32 blocks/s)  -> projectile velocity=32
-#
-#  覆盖 vanilla Skeleton 会应用到所有骷髅 (与原版一致)。
-#  若服务器不希望全服骷髅参与,可将下方技能改为通过技能组/权限
-#  或自定义实体类型按需挂载。
-# ============================================================
 Skeleton:
   Type: SKELETON
   Skills:
   - skill:ShootTumbleweed ~onTimer:20 chance=0.06
-
-# --- 射击风滚草技能 ---
-ShootTumbleweed:
-  Conditions:
-  - distance{a=9;b=18}
-  - lineofsight
-  Skills:
-  - look
-  - projectile{projectile=ARROW;velocity=32;velocityMode=FORWARD;amount=1;power=1} @MobsInRadius{r=18;limit=1;conditions=[mythicmobtype{type=Tumbleweed}]}
-  - sound{s=ENTITY_SKELETON_SHOOT;volume=1;pitch=0.8-1.2} @self

@@ -30,16 +30,8 @@ Tumbleweed:
   Skills:
   - skill:TumbleweedTrample ~onTimer:10 chance=0.7
   Drops:
-  - item{name=WHEAT_SEEDS;amount=1-3;chance=0.2}
-  - item{name=STICK;amount=1-2;chance=0.25}
-  - item{name=DEAD_BUSH;amount=1;chance=0.1}
-  - item{name=DIRT;amount=1;chance=0.1}
-  - item{name=MUSIC_DISC_13;amount=1;chance=0.05}
-
-TumbleweedTrample:
-  Conditions:
-  - onground
-  - onblock{m=FARMLAND}
-  Skills:
-  - setblock{m=DIRT;direction=down} @TriggerLocation
-  - sound{s=BLOCK_GRAVEL_BREAK;volume=0.8;pitch=0.9} @self
+  - WHEAT_SEEDS 1-3 0.2
+  - STICK 1-2 0.25
+  - DEAD_BUSH 1 0.1
+  - DIRT 1 0.1
+  - MUSIC_DISC_13 1 0.05
