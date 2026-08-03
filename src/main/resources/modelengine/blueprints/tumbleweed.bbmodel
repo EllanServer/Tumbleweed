@@ -822,6 +822,90 @@
         0,
         0
       ]
+    },
+    {
+      "name": "hitbox_cube",
+      "box_uv": true,
+      "render_order": "default",
+      "locked": false,
+      "export": true,
+      "scope": 0,
+      "allow_mirror_modeling": true,
+      "from": [
+        -8.0,
+        -4.0,
+        -8.0
+      ],
+      "to": [
+        8.0,
+        12.0,
+        8.0
+      ],
+      "autouv": 0,
+      "color": 0,
+      "origin": [
+        0.0,
+        8.0,
+        0.0
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            16,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            16,
+            16,
+            32
+          ],
+          "texture": 0
+        },
+        "south": {
+          "uv": [
+            32,
+            16,
+            32,
+            32
+          ],
+          "texture": 0
+        },
+        "west": {
+          "uv": [
+            16,
+            16,
+            32,
+            32
+          ],
+          "texture": 0
+        },
+        "up": {
+          "uv": [
+            16,
+            16,
+            16,
+            0
+          ],
+          "texture": 0
+        },
+        "down": {
+          "uv": [
+            16,
+            0,
+            16,
+            16
+          ],
+          "texture": 0
+        }
+      },
+      "type": "cube",
+      "uuid": "00000000-0000-0000-0000-000000000003"
     }
   ],
   "outliner": [
@@ -852,6 +936,32 @@
         "4d380e32-8241-46d4-e58b-a2852b6547b3",
         "26113891-bf77-dbfc-94dd-c9f25a237c70",
         "66c480aa-bcba-571b-ea6a-275937504782"
+      ]
+    },
+    {
+      "name": "hitbox",
+      "origin": [
+        0.0,
+        8.0,
+        0.0
+      ],
+      "scope": 0,
+      "color": 0,
+      "uuid": "00000000-0000-0000-0000-000000000004",
+      "export": true,
+      "mirror_uv": false,
+      "isOpen": false,
+      "locked": false,
+      "visibility": true,
+      "autouv": 0,
+      "selected": false,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "children": [
+        "00000000-0000-0000-0000-000000000003"
       ]
     }
   ],
