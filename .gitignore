@@ -25,3 +25,5 @@ libs/
 
 # 本地工具临时文件
 md*.json
+out/
+err.log
