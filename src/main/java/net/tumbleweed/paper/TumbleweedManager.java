@@ -5,6 +5,7 @@ import net.tumbleweed.paper.model.CullingIntegration;
 import net.tumbleweed.paper.model.ModelController;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
@@ -24,12 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
  *  - 距最近玩家超过 performance.distant-physics-distance 格 (默认 96) 的风滚草
  *    处于所有玩家视距外,物理与渲染同步降频为每 distant-physics-interval tick 一次,
  *    寿命按真实时间补偿,玩家靠近后自动恢复全速。
- *  - 脱管检查 (原版 110 格) 仍每 tick 执行,基于缓存的玩家距离 (最多延迟 10 tick 消失)。
+ *  - 脱管检查 (原版 160 格) 仍每 tick 执行,基于缓存的玩家距离 (最多延迟 10 tick 消失)。
  */
 public class TumbleweedManager {
 
     private static final int PLAYER_CHECK_INTERVAL = 10;  // 玩家距离缓存刷新间隔 (tick)
-    private static final double DESPAWN_RANGE_SQ = 110 * 110; // 原版脱管距离
+    private static final double DESPAWN_RANGE_SQ = 160 * 160; // 原版 1.20.1 脱管距离 (最近玩家 160 格)
 
     private final TumbleweedPlugin plugin;
     // 注册表:UUID -> Tumbleweed,供按实体查询 (get/isTumbleweed)
@@ -42,7 +43,6 @@ public class TumbleweedManager {
     private CullingIntegration culling; // 可选:CE 可见性判定 (未安装 CraftEngine 时为 null)
     private BukkitTask task;
     private final Random random = new Random();
-    private int windTicks;        // 原版:每 2 分钟翻转一次风向
     private int playerCheckTicks; // 玩家距离缓存刷新计数
 
     public TumbleweedManager(TumbleweedPlugin plugin) {
@@ -76,13 +76,9 @@ public class TumbleweedManager {
     }
 
     private void tick() {
-        // 原版 CommonEventHandler:每 2*60*20 tick 翻转一次风向
-        if (++windTicks >= 2 * 60 * 20) {
-            windTicks = 0;
-            plugin.rollWind();
-        }
+        // 原版 1.20.1: 风力恒定, 无风向翻转
 
-        // 每 10 tick 刷新一次各风滚草的最近玩家距离 (玩家位置误差 ≤10 tick,远小于 110/96 阈值)
+        // 每 10 tick 刷新一次各风滚草的最近玩家距离 (玩家位置误差 ≤10 tick,远小于 160/96 阈值)
         if (++playerCheckTicks >= PLAYER_CHECK_INTERVAL) {
             playerCheckTicks = 0;
             refreshPlayerDistances();
@@ -108,8 +104,9 @@ public class TumbleweedManager {
 
             Double dSq = playerDistSq.get(tw.entity().getUniqueId());
 
-            // 脱管检查 (原版:最近玩家三维距离 > 110 → 消失)
-            if (!tw.isPersistent() && dSq != null && dSq > DESPAWN_RANGE_SQ) {
+            // 脱管检查 (原版 1.20.1:最近玩家三维距离 > 160 → 消失; 骑乘矿车或命名后不消失)
+            if (!tw.isPersistent() && tw.entity().getVehicle() == null
+                    && dSq != null && dSq > DESPAWN_RANGE_SQ) {
                 if (culling != null) {
                     culling.unregisterTumbleweed(tw);
                 }
@@ -232,6 +229,7 @@ public class TumbleweedManager {
      * 生成一只风滚草 (由 TumbleweedSpawner 调用)。
      * 经 MythicMobs API 创建 MM 实体 (怪物属性/践踏/掉落由 Tumbleweed.yml 配置驱动),
      * 创建成功后立即注册物理, 与 MythicListener 的事件注册幂等。
+     * 生成前检查原版 isNotColliding (生成点无方块碰撞), 失败则销毁实体返回 false。
      */
     public boolean spawn(org.bukkit.World world, double x, double y, double z) {
         io.lumine.mythic.core.mobs.ActiveMob mob;
@@ -249,13 +247,36 @@ public class TumbleweedManager {
         if (entity == null || entity.isDead() || !entity.isValid()) {
             return false;
         }
+        // 原版 isNotColliding: 生成点两格 (实体占位) 必须无碰撞方块
+        if (!isSpawnClear(world, x, y, z)) {
+            entity.remove();
+            return false;
+        }
         if (entity instanceof org.bukkit.entity.LivingEntity living) {
             living.setAI(false);
             living.setCollidable(false);
         }
-        Tumbleweed tw = new Tumbleweed(entity, 1 + random.nextInt(4));
+        Tumbleweed tw = new Tumbleweed(entity, random.nextInt(5) - 2); // 原版: size ∈ [-2, 2]
         tw.setPersistent(false);
         register(tw);
+        return true;
+    }
+
+    /** 原版 isNotColliding 的方块部分: 生成点与上方一格均无碰撞方块且无液体 (生成频率低, 直接查 Block)。 */
+    private boolean isSpawnClear(org.bukkit.World world, double x, double y, double z) {
+        int bx = org.bukkit.util.NumberConversions.floor(x);
+        int by = org.bukkit.util.NumberConversions.floor(y);
+        int bz = org.bukkit.util.NumberConversions.floor(z);
+        for (int dy = 0; dy <= 1; dy++) {
+            if (by + dy < world.getMinHeight() || by + dy >= world.getMaxHeight()) {
+                continue;
+            }
+            Material type = world.getBlockAt(bx, by + dy, bz).getType();            // 原版: 无方块碰撞 (干灌木等无碰撞盒方块放行) 且无液体 (containsAnyLiquid)
+            if ((type.isCollidable() && !type.isAir())
+                    || type == Material.WATER || type == Material.BUBBLE_COLUMN) {
+                return false;
+            }
+        }
         return true;
     }
 

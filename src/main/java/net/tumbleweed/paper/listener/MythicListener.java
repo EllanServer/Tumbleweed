@@ -37,8 +37,8 @@ public class MythicListener implements Listener {
             return;
         }
 
-        // 随机尺寸 1~4 (原版 entityInit 随机;mcSize = 0.75 + size/8)
-        Tumbleweed tw = new Tumbleweed(entity, 1 + random.nextInt(4));
+        // 随机尺寸 -2~2 (原版 Spawner: setSize(rand(5)-2); mcSize = 0.75 + size/8 ∈ [0.5, 1.0])
+        Tumbleweed tw = new Tumbleweed(entity, random.nextInt(5) - 2);
         tw.setPersistent(false);
 
         // NoAI,物理完全由插件接管;关闭实体碰撞 (原版 getCollisionBox=null,不阻挡实体)

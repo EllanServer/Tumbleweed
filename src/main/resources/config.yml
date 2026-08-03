@@ -4,6 +4,7 @@
 #  设计原则:能用 MythicMobs 配置表达的功能一律在 MM 配置中调整:
 #   - 怪物属性 / 血量 / 伤害免疫        -> plugins/MythicMobs/Mobs/Tumbleweed.yml
 #   - 践踏农田 / 掉落表                 -> plugins/MythicMobs/Mobs/Tumbleweed.yml
+#                                         + plugins/MythicMobs/DropTables/TumbleweedDrops.yml
 #   - 骷髅射击风滚草 AI                 -> plugins/MythicMobs/Mobs/Skeleton.yml
 #   - 3D 模型 / 纹理                    -> plugins/ModelEngine/blueprints/tumbleweed.bbmodel
 #  自然生成由本插件按原版 mod 的 Spawner 逻辑实现 (下方 spawner 段),
@@ -13,6 +14,8 @@
 
 # 风力倍率 (原版 mod 的 windMultiplier)。1.0 = 原版强度。
 # 调大 -> 风滚草滚得更快;调小 -> 更慢。
+# 注:原版 1.20.1 风力恒定 WIND = -1/16 (西北方向,永不翻转),
+#  windMod 每实体随机 0.95~1.05 (见 Tumbleweed.java)。
 wind-multiplier: 1.0
 
 # 首次启动时是否把内嵌的 MythicMobs 配置与 ModelEngine 蓝图
@@ -28,7 +31,8 @@ auto-export-resources: true
 #     世界边界内,区块中心群系为干燥/沙地群系
 #   - 生成点:必须落在干灌木 (dead_bush) 上且可见天空,±5 格找位
 #     尝试最多 10 次;生成点 32 格内无玩家、世界出生点 24 格外
-#   - 20% 概率一次生成两只;实体尺寸随机 1~4
+#   - 20% 概率一次生成两只;实体尺寸随机 -2~2 (原版 setSize(rand(5)-2),
+#     mcSize = 0.75 + size/8 ∈ [0.5, 1.0])
 #  注意:若服务器上残留旧版导出的 plugins/MythicMobs/Spawners/
 #  TumbleweedSpawner.yml,请手动删除,否则会与本生成器双重生成。
 spawner:
@@ -43,7 +47,7 @@ spawner:
 #  视距之外 (不可见),物理与渲染同步降频为每 distant-physics-interval
 #  tick 一次,可显著降低 ModelEngine 数据包与物理开销;玩家靠近后
 #  自动恢复全速,视觉上无感知。寿命按真实时间补偿,不会变长。
-#  注:脱管检查 (110 格) 不受降频影响,仍每 tick 执行。
+#  注:脱管检查 (原版 160 格) 不受降频影响,仍每 tick 执行。
 performance:
   distant-physics-distance: 96   # 0 = 关闭远处降频
   distant-physics-interval: 4    # 每 N tick 运行一次物理与渲染同步

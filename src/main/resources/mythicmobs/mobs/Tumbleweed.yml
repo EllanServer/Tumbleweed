@@ -1,5 +1,11 @@
 # ============================================================
 #  风滚草 - MythicMobs 怪物定义 (配置化,插件只负责物理)
+#  掉落对照原版 1.20.1 loot_tables/entities/tumbleweed.json:
+#   - DropTable TumbleweedDrops: 池内按权重抽 1 (common 6×17 / uncommon 4×7 /
+#     rare 2×4 / epic 4×1, 总权重 142) —— 与原版 rolls=1 语义一致
+#   - 骷髅系击杀额外掉落 1 张唱片 (原版 creeper_drop_music_discs 池,
+#     12 张各 1/12; MM dropitem 独立判定,用 chance=0.0833 近似)
+#   - 死亡音效: 原版 playSound(grass break, (vol+1)/2=0.75, pitch*0.8)
 # ============================================================
 Tumbleweed:
   Type: PIG
@@ -30,10 +36,23 @@ Tumbleweed:
   - DROWNING 0
   - EXPLOSION 0
   Skills:
-  - skill:TumbleweedTrample ~onTimer:10 chance=0.7
+  # 践踏农田: 原版 FarmlandMixin 在实体落地 (fallOn) 时 70% 概率触发 (受 mobGriefing 控制,
+  # MM 无 gamerule 条件,此处近似; 原版在落地瞬间判定,非滚动经过)
+  - skill:TumbleweedTrample ~onFall chance=0.7
+  # 死亡音效: 原版 grass break, 音量 0.75, 音调 0.8
+  - sound{s=BLOCK_GRASS_BREAK;volume=0.75;pitch=0.8} ~onDeath
+  # 骷髅系击杀: 原版额外掉落 1 张唱片 (12 选 1, MM 独立判定 chance=1/12 近似)
+  - dropitem{item=MUSIC_DISC_13;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_CAT;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_BLOCKS;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_CHIRP;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_FAR;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_MALL;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_MELLOHI;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_STAL;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_STRAD;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_WARD;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_11;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
+  - dropitem{item=MUSIC_DISC_WAIT;amount=1} ~onDeath @killeris{type=Skeleton,Stray,Bogged} chance=0.0833
   Drops:
-  - WHEAT_SEEDS 1-3 0.2
-  - STICK 1-2 0.25
-  - DEAD_BUSH 1 0.1
-  - DIRT 1 0.1
-  - MUSIC_DISC_13 1 0.05
+  - table:TumbleweedDrops

@@ -1,0 +1,29 @@
+# ============================================================
+#  风滚草掉落表 - 对照原版 1.20.1 loot_tables/entities/tumbleweed.json
+#
+#  原版结构: rolls=1, 池内按权重抽 1 个物品
+#   - common (weight 17):   bone, dead_bush, string, feather, wheat, stick
+#   - uncommon (weight 7):  sugar_cane, melon_seeds, pumpkin_seeds, gold_nugget
+#   - rare (weight 4):      iron_ingot, gold_ingot
+#   - epic (weight 1):      name_tag, saddle, emerald, diamond
+#  总权重 142; 骷髅系击杀的唱片池见 mob 配置 Tumbleweed.yml
+# ============================================================
+TumbleweedDrops:
+  Items:
+  - BONE 1 17
+  - DEAD_BUSH 1 17
+  - STRING 1 17
+  - FEATHER 1 17
+  - WHEAT 1 17
+  - STICK 1 17
+  - SUGAR_CANE 1 7
+  - MELON_SEEDS 1 7
+  - PUMPKIN_SEEDS 1 7
+  - GOLD_NUGGET 1 7
+  - IRON_INGOT 1 4
+  - GOLD_INGOT 1 4
+  - NAME_TAG 1 1
+  - SADDLE 1 1
+  - EMERALD 1 1
+  - DIAMOND 1 1
+  Rolls: 1

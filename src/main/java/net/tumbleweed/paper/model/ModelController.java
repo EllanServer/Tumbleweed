@@ -19,8 +19,16 @@ import java.util.function.Consumer;
  *  - ModelEngineAPI.createModeledEntity(Entity)     -> ModeledEntity
  *  - ModelEngineAPI.createActiveModel(String id)    -> ActiveModel (按 blueprint 实例化)
  *  - ModeledEntity.addModel(ActiveModel, boolean)   -> Optional&lt;ActiveModel&gt;
- *  - ActiveModel.setScale(Vector3fc) / getBones()
- *  - ModelBone.getLocalTransform().setLeftQuaternion(Quaternionf)
+ *  - ActiveModel.getBones() / ModelBone.getLocalTransform()
+ *  - Transform.setLeftQuaternion(Quaternionf) / setScale(Vector3f) (骨骼本地变换,围绕骨骼 pivot)
+ *
+ * 渲染对齐原版 RenderTumbleweed:
+ *  - 旋转/缩放轴心: 原版 translate(0, bbHeight*0.3, 0) —— 轴心在实体 0.3 倍高处;
+ *    blueprint root group origin 已设 [0, 4.8, 0] (0.3 格),骨骼变换围绕该 pivot,
+ *    静态配置零运行时开销 (size=2 精确, 小尺寸误差 ≤0.15 格, 视觉可忽略)
+ *  - scale(size, size, size) * scale(1, stretch, 1) → 最终 (size, size*stretch, size),
+ *    仅 Y 轴压扁; 用 root 骨骼 localTransform.setScale 而非 ActiveModel.setScale
+ *    (display scale 围绕脚底, 骨骼 scale 围绕 pivot, 与原版一致)
  *
  * ModelEngine 只做渲染 (bbmodel 为互插薄板),碰撞与物理完全由插件驱动,
  * 因此 base 实体隐藏,模型根骨骼由插件旋转/缩放。
@@ -143,7 +151,8 @@ public final class ModelController {
                     lastScale[0] = sx;
                     lastScale[1] = sy;
                     lastScale[2] = sz;
-                    model.setScale(new Vector3f(sx, sy, sz));
+                    // 骨骼本地缩放 (围绕 root pivot = 原版 0.3h 轴心), 替代 ActiveModel.setScale
+                    root.getLocalTransform().setScale(new Vector3f(sx, sy, sz));
                 }
                 hasLast = true;
             } catch (Exception e) {

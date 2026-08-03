@@ -28,14 +28,10 @@ import java.util.logging.Level;
  */
 public class TumbleweedPlugin extends JavaPlugin {
 
-    /** 原版全局风力 (Tumbleweed.windX/windZ):每 2 分钟各 50% 概率翻转符号。 */
-    private static final float DEFAULT_WIND_X = 0.08f;
-    private static final float DEFAULT_WIND_Z = -0.08f;
+    // 原版 1.20.1: 风力恒定 WIND_X = WIND_Z = -1/16, 永不翻转 (1.8.9 master 的
+    // 每 2 分钟翻转行为在 1.20.1 已删除), 常量定义在 Tumbleweed.WIND
 
     private static TumbleweedPlugin instance;
-    private static float windX = DEFAULT_WIND_X;
-    private static float windZ = DEFAULT_WIND_Z;
-    private static final java.util.Random windRandom = new java.util.Random();
 
     private PluginConfig pluginConfig;
     private TumbleweedManager tumbleweedManager;
@@ -43,26 +39,6 @@ public class TumbleweedPlugin extends JavaPlugin {
 
     public static TumbleweedPlugin getInstance() {
         return instance;
-    }
-
-    /** 当前全局风力 X 分量 (原版 Tumbleweed.windX)。 */
-    public static float windX() {
-        return windX;
-    }
-
-    /** 当前全局风力 Z 分量 (原版 Tumbleweed.windZ)。 */
-    public static float windZ() {
-        return windZ;
-    }
-
-    /** 原版:每 2 分钟对 X/Z 各做一次 50% 概率的符号翻转。 */
-    public void rollWind() {
-        if (windRandom.nextBoolean()) {
-            windX = -windX;
-        }
-        if (windRandom.nextBoolean()) {
-            windZ = -windZ;
-        }
     }
 
     @Override
@@ -149,6 +125,8 @@ public class TumbleweedPlugin extends JavaPlugin {
     private void exportResources() {
         export("mythicmobs/mobs/Tumbleweed.yml", "plugins/MythicMobs/mobs/Tumbleweed.yml");
         export("mythicmobs/mobs/Skeleton.yml", "plugins/MythicMobs/mobs/Skeleton.yml");
+        export("mythicmobs/skills/Tumbleweed.yml", "plugins/MythicMobs/skills/Tumbleweed.yml");
+        export("mythicmobs/DropTables/TumbleweedDrops.yml", "plugins/MythicMobs/DropTables/TumbleweedDrops.yml");
         export("modelengine/blueprints/tumbleweed.bbmodel", "plugins/ModelEngine/blueprints/tumbleweed.bbmodel");
         export("modelengine/textures/tumbleweed.png", "plugins/ModelEngine/textures/tumbleweed.png");
     }
