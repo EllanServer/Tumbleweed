@@ -823,7 +823,9 @@
       "frame_order_type": "loop",
       "frame_interpolate": false,
       "visible": true,
-      "internal": true
+      "internal": true,
+      "namespace": "tumbleweed",
+      "id": "tumbleweed"
     }
   ],
   "animations": [],
